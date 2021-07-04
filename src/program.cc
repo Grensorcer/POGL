@@ -96,4 +96,19 @@ namespace mygl
     {
         logs_ += logs;
     }
+
+    void program::set_int(const std::string &name, int value) const
+    {
+        glUniform1i(glGetUniformLocation(id_, name.c_str()), value);
+    }
+
+    void program::set_float(const std::string &name, float value) const
+    {
+        glUniform1f(glGetUniformLocation(id_, name.c_str()), value);
+    }
+
+    void program::set_vec3(const std::string &name, glm::vec3 value) const
+    {
+        glUniform3fv(glGetUniformLocation(id_, name.c_str()), 1, &value[0]);
+    }
 } // namespace mygl

@@ -15,6 +15,8 @@ namespace gl_static
 {
     static const float vertices[] = { -1, -1, 0, 1, -1, 0, 0, 1, 0 };
     static const float colors[] = { 1, 0, 0, 0, 0, 1, 0, 1, 0 };
+    static const float texture_coords[] = { 0, 0, 2, 0, 1, 2 };
+
     static float cube_vertices[] = {
         -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,
         1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  -1.0f,

@@ -8,6 +8,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include "program.hh"
 #include "utils.hh"
 
@@ -19,7 +22,7 @@ void display(void)
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBindVertexArray(VAO);
-    glDrawArrays(GL_TRIANGLES, 0, 12 * 3);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
     glBindVertexArray(0);
     glutSwapBuffers();
 }
@@ -75,14 +78,19 @@ void setup_vao(GLuint program_id)
         glm::lookAt(glm::vec3(5, 5, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
     projection *= view;
 
+    glm::vec3 light_position{ 1, 2, 2 };
+    glm::vec3 light_color{ 1, 1, 1 };
+
     unsigned int vertices_VBO;
     unsigned int colors_VBO;
+    unsigned int texture_VBO;
+    unsigned int texture;
 
     // Setup vertices
     glGenBuffers(1, &vertices_VBO);
     glBindBuffer(GL_ARRAY_BUFFER, vertices_VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(gl_static::cube_vertices),
-                 gl_static::cube_vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(gl_static::vertices),
+                 gl_static::vertices, GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
     glEnableVertexAttribArray(0);
@@ -90,15 +98,50 @@ void setup_vao(GLuint program_id)
     // Setup colors
     glGenBuffers(1, &colors_VBO);
     glBindBuffer(GL_ARRAY_BUFFER, colors_VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(gl_static::cube_colors),
-                 gl_static::cube_colors, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(gl_static::colors), gl_static::colors,
+                 GL_STATIC_DRAW);
 
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
     glEnableVertexAttribArray(1);
 
+    // Setup texture coordinates
+    glGenBuffers(1, &texture_VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, texture_VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(gl_static::texture_coords),
+                 gl_static::texture_coords, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, (void *)0);
+    glEnableVertexAttribArray(2);
+
+    // Setup texture
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                    GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    int width, height, n;
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char *data = stbi_load("../data/Seamless_Pebbles_Texture.jpg",
+                                    &width, &height, &n, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
+                 GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    stbi_image_free(data);
+
     // Setup projection matrix
     GLint proj_location = glGetUniformLocation(program_id, "projection_matrix");
     glUniformMatrix4fv(proj_location, 1, false, &projection[0][0]);
+
+    // Setup light
+    GLint light_position_location =
+        glGetUniformLocation(program_id, "light_position");
+    glUniform3fv(light_position_location, 1, &light_position[0]);
+    GLint light_color_location =
+        glGetUniformLocation(program_id, "light_color");
+    glUniform3fv(light_color_location, 1, &light_color[0]);
 
     glBindVertexArray(0);
 }
