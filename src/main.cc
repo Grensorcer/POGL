@@ -156,7 +156,7 @@ bool setup_vao(GLuint program_id)
     gAmbientLight = glGetUniformLocation(program_id, "ambient_light");
     gTextureLocation = glGetUniformLocation(program_id, "texture_sampler");
 
-    v_texture.emplace_back("../data/Seamless_Pebbles_Texture.jpg");
+    v_texture.emplace_back("../data/texture/Seamless_Pebbles_Texture.jpg");
     if (v_texture[0].load())
         return false;
 
