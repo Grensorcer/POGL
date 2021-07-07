@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <vector>
 #include <GL/glew.h>
 #include <GL/freeglut.h>
 #include <glm/vec3.hpp>
@@ -8,11 +9,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
 #include "program.hh"
 #include "utils.hh"
+#include "texture.hh"
 
 using namespace mygl;
 
@@ -21,26 +20,9 @@ GLint gProjectionMatrixLocation;
 GLint gAmbientLight;
 GLint gLightPositionLocation;
 GLint gLightColorLocation;
-GLuint gTextureLocation;
+GLint gTextureLocation;
 
-void load_texture(const char *texture_path)
-{
-    glGenTextures(1, &gTextureLocation);
-    glBindTexture(GL_TEXTURE_2D, gTextureLocation);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                    GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    int width, height, n;
-    stbi_set_flip_vertically_on_load(true);
-    unsigned char *data = stbi_load(texture_path, &width, &height, &n, 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
-                 GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    stbi_image_free(data);
-}
+std::vector<Texture> v_texture;
 
 void display(void)
 {
@@ -72,8 +54,10 @@ void display(void)
     glUniform3fv(gLightPositionLocation, 1, &light_position[0]);
     glUniform3fv(gLightColorLocation, 1, &light_color[0]);
     glUniform1f(gAmbientLight, ambient_light);
+    glUniform1i(gTextureLocation, 0);
 
     glBindVertexArray(VAO);
+    v_texture[0].bind(GL_TEXTURE0);
     glDrawElements(GL_TRIANGLES, 3 * 4, GL_UNSIGNED_SHORT, (void *)0);
     glBindVertexArray(0);
     // glutPostRedisplay();
@@ -115,13 +99,14 @@ bool initGl()
     // glDepthRange(0., 1.);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glEnable(GL_CULL_FACE);
+    glEnable(GL_TEXTURE_2D);
     glClearColor(0, 0, 0, 0);
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(utils::messageCallback, 0);
     return true;
 }
 
-void setup_vao(GLuint program_id)
+bool setup_vao(GLuint program_id)
 {
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
@@ -169,10 +154,14 @@ void setup_vao(GLuint program_id)
     gLightPositionLocation = glGetUniformLocation(program_id, "light_position");
     gLightColorLocation = glGetUniformLocation(program_id, "light_color");
     gAmbientLight = glGetUniformLocation(program_id, "ambient_light");
+    gTextureLocation = glGetUniformLocation(program_id, "texture_sampler");
 
-    load_texture("../data/Seamless_Pebbles_Texture.jpg");
+    v_texture.emplace_back("../data/Seamless_Pebbles_Texture.jpg");
+    if (v_texture[0].load())
+        return false;
 
     glBindVertexArray(0);
+    return true;
 }
 
 int main(int argc, char **argv)

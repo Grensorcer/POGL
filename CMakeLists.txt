@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 project(GLTP VERSION 0.1 LANGUAGES CXX)
 
-set(SRC src/program.cc src/utils.cc)
+set(SRC src/program.cc src/utils.cc src/texture.cc)
 
 add_executable(GLTPexe src/main.cc ${SRC})
 target_compile_features(GLTPexe PUBLIC cxx_std_17)
