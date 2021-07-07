@@ -8,6 +8,6 @@ uniform float ambient_light;
 
 out vec4 FragColor;
 void main(){
-    FragColor=texture(texture_sampler,TexCoord)*Color*ambient_light;
-    // FragColor=Color;
+    // FragColor=texture(texture_sampler,TexCoord)*Color;// *ambient_light;
+    FragColor=Color;
 }

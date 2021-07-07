@@ -12,10 +12,10 @@
 #include "program.hh"
 #include "utils.hh"
 #include "texture.hh"
+#include "mesh.hh"
 
 using namespace mygl;
 
-unsigned int VAO;
 GLint gProjectionMatrixLocation;
 GLint gAmbientLight;
 GLint gLightPositionLocation;
@@ -23,6 +23,7 @@ GLint gLightColorLocation;
 GLint gTextureLocation;
 
 std::vector<Texture> v_texture;
+std::vector<Mesh> v_mesh;
 
 void display(void)
 {
@@ -31,14 +32,14 @@ void display(void)
     static float delta = 0.005f;
     static float ambient_light = 0.3f;
 
-    glm::vec3 light_position{ 1, 2, 2 };
+    glm::vec3 light_position{ 4, 2, 4 };
     glm::vec3 light_color{ 1, 1, 1 };
 
     glm::mat4 model = glm::mat4(1.0f);
     glm::mat4 projection =
         glm::perspective(glm::radians(45.f), 1960.f / 1080.f, 0.1f, 100.f);
     glm::mat4 view =
-        glm::lookAt(glm::vec3(3, 3, 5), glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
+        glm::lookAt(glm::vec3(4, 0, 4), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
     projection *= view;
 
     scale += delta;
@@ -46,7 +47,7 @@ void display(void)
         delta *= -1;
 
     // model = glm::scale(model, glm::vec3(scale));
-    model = glm::rotate(model, scale * 3, glm::vec3(0, 0, 1));
+    model = glm::rotate(model, scale * 3, glm::vec3(0, 1, 0));
     // model = glm::translate(model, glm::vec3(0, 0, 0));
     projection *= model;
 
@@ -56,10 +57,8 @@ void display(void)
     glUniform1f(gAmbientLight, ambient_light);
     glUniform1i(gTextureLocation, 0);
 
-    glBindVertexArray(VAO);
     v_texture[0].bind(GL_TEXTURE0);
-    glDrawElements(GL_TRIANGLES, 3 * 4, GL_UNSIGNED_SHORT, (void *)0);
-    glBindVertexArray(0);
+    v_mesh[0].render();
     // glutPostRedisplay();
     glutSwapBuffers();
 }
@@ -99,7 +98,6 @@ bool initGl()
     // glDepthRange(0., 1.);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glEnable(GL_CULL_FACE);
-    glEnable(GL_TEXTURE_2D);
     glClearColor(0, 0, 0, 0);
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(utils::messageCallback, 0);
@@ -108,47 +106,6 @@ bool initGl()
 
 bool setup_vao(GLuint program_id)
 {
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-
-    unsigned int vertices_VBO;
-    unsigned int colors_VBO;
-    unsigned int texture_VBO;
-    unsigned int IBO;
-
-    // Setup vertices
-    glGenBuffers(1, &vertices_VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, vertices_VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(gl_static::pyramid_vertices),
-                 gl_static::pyramid_vertices, GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
-
-    // Setup colors
-    glGenBuffers(1, &colors_VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, colors_VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(gl_static::pyramid_colors),
-                 gl_static::pyramid_colors, GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
-
-    // Setup texture coordinates
-    glGenBuffers(1, &texture_VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, texture_VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(gl_static::pyramid_texture_coords),
-                 gl_static::pyramid_texture_coords, GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, (void *)0);
-
-    // Setup index buffer
-    glGenBuffers(1, &IBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(gl_static::pyramid_indices),
-                 gl_static::pyramid_indices, GL_STATIC_DRAW);
-
     gProjectionMatrixLocation =
         glGetUniformLocation(program_id, "projection_matrix");
     gLightPositionLocation = glGetUniformLocation(program_id, "light_position");
@@ -156,11 +113,14 @@ bool setup_vao(GLuint program_id)
     gAmbientLight = glGetUniformLocation(program_id, "ambient_light");
     gTextureLocation = glGetUniformLocation(program_id, "texture_sampler");
 
-    v_texture.emplace_back("../data/Seamless_Pebbles_Texture.jpg");
-    if (v_texture[0].load())
+    v_mesh.emplace_back("../data/model/monkey_pyramid.obj");
+    if (!v_mesh[0].load())
         return false;
 
-    glBindVertexArray(0);
+    v_texture.emplace_back("../data/texture/Seamless_Pebbles_Texture.jpg");
+    if (!v_texture[0].load())
+        return false;
+
     return true;
 }
 
