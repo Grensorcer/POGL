@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <GL/glew.h>
+#include <glm/vec3.hpp>
 
 namespace utils
 {
@@ -16,6 +17,18 @@ namespace gl_static
     static const float vertices[] = { -1, -1, 0, 1, -1, 0, 0, 1, 0 };
     static const float colors[] = { 1, 0, 0, 0, 0, 1, 0, 1, 0 };
     static const float texture_coords[] = { 0, 0, 2, 0, 1, 2 };
+    static const unsigned int indices[] = { 0, 1, 2 };
+
+    static const float pyramid_vertices[] = { 0, 0, 1,  -1, 1,  0,  1, 1,
+                                              0, 1, -1, 0,  -1, -1, 0 };
+    static const float pyramid_colors[] = { 1, 1, 1, 0, 0, 0, 1, 0,
+                                            0, 0, 1, 0, 0, 0, 1 };
+    static const float pyramid_texture_coords[] = { 0.33, 0.5,  0, 0,    0,
+                                                    1,    0.66, 1, 0.66, 0 };
+    static const float pyramid_normals[] = { 0, 0, 1, 0, 0, 1, 0, 0,
+                                             1, 0, 0, 1, 0, 0, 1 };
+    static const unsigned short pyramid_indices[] = { 0, 2, 1, 0, 3, 2,
+                                                      0, 4, 3, 0, 1, 4 };
 
     static float cube_vertices[] = {
         -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,
@@ -45,4 +58,4 @@ namespace gl_static
         0.517f, 0.713f, 0.338f, 0.053f, 0.959f, 0.120f, 0.393f, 0.621f, 0.362f,
         0.673f, 0.211f, 0.457f, 0.820f, 0.883f, 0.371f, 0.982f, 0.099f, 0.879f
     };
-}
+} // namespace gl_static

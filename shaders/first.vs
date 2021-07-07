@@ -4,6 +4,7 @@ layout(location=1)in vec3 vColor;
 layout(location=2)in vec2 vTexture;
 
 uniform mat4 projection_matrix;
+
 uniform vec3 light_position;
 uniform vec3 light_color;
 
