@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <memory>
 #include <vector>
 #include <GL/glew.h>
 #include <GL/freeglut.h>
@@ -24,7 +25,7 @@ GLint gTextureLocation;
 GLint gNormalsLocation;
 GLint gHeightLocation;
 
-Mesh *scene;
+std::vector<std::unique_ptr<Mesh>> scene;
 
 void display(void)
 {
@@ -61,7 +62,8 @@ void display(void)
     glUniform1i(gNormalsLocation, 1);
     glUniform1i(gHeightLocation, 2);
 
-    scene->render();
+    for (auto &mesh : scene)
+        mesh->render();
     // glutPostRedisplay();
     glutSwapBuffers();
 }
@@ -118,9 +120,13 @@ bool setup_vao(GLuint program_id)
     gNormalsLocation = glGetUniformLocation(program_id, "normal_sampler");
     gHeightLocation = glGetUniformLocation(program_id, "height_sampler");
 
-    scene = new Mesh("../data/model/pyramid_mat.obj");
-    if (!scene->load())
-        return false;
+    scene.emplace_back(new Mesh("../data/model/monkey_pyramid.obj"));
+
+    for (auto &mesh : scene)
+    {
+        if (!mesh->load())
+            return false;
+    }
     return true;
 }
 
@@ -142,7 +148,12 @@ int main(int argc, char **argv)
     }
 
     test.use();
-    setup_vao(test.id());
+
+    if (!setup_vao(test.id()))
+    {
+        std::cerr << "VAO setup failed\n";
+        return 1;
+    }
 
     glutMainLoop();
 

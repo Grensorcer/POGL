@@ -25,14 +25,16 @@ namespace mygl
 
     void Mesh::render()
     {
-        for (size_t i = 0; i < mesh_entries_.size(); ++i)
+        for (const auto &mesh_entry : mesh_entries_)
         {
-            glBindVertexArray(mesh_entries_[i].VAO);
-            texture_entries_[i * 3]->bind(GL_TEXTURE0);
-            texture_entries_[i * 3 + 1]->bind(GL_TEXTURE1);
-            texture_entries_[i * 3 + 2]->bind(GL_TEXTURE2);
+            glBindVertexArray(mesh_entry.VAO);
+            texture_entries_[mesh_entry.material_index * 3]->bind(GL_TEXTURE0);
+            texture_entries_[mesh_entry.material_index * 3 + 1]->bind(
+                GL_TEXTURE1);
+            texture_entries_[mesh_entry.material_index * 3 + 2]->bind(
+                GL_TEXTURE2);
 
-            glDrawElements(GL_TRIANGLES, mesh_entries_[i].num_indices,
+            glDrawElements(GL_TRIANGLES, mesh_entry.num_indices,
                            GL_UNSIGNED_INT, (void *)0);
         }
         glBindVertexArray(0);
@@ -40,7 +42,7 @@ namespace mygl
     bool Mesh::scene_init(const aiScene *scene)
     {
         mesh_entries_.resize(scene->mNumMeshes);
-        texture_entries_.resize(scene->mNumMeshes * 3);
+        texture_entries_.resize(scene->mNumMaterials * 3);
 
         for (size_t i = 0; i < mesh_entries_.size(); ++i)
         {
@@ -83,7 +85,7 @@ namespace mygl
             indices.push_back(face.mIndices[2]);
         }
 
-        mesh_entries_[idx].material_index = idx;
+        mesh_entries_[idx].material_index = mesh->mMaterialIndex;
         mesh_entries_[idx].init(vertices, normals, uvs, indices);
     }
 
@@ -105,7 +107,10 @@ namespace mygl
             }
         }
         else
+        {
+            std::cerr << "Could not GetTexture for idx " << idx << '\n';
             res = false;
+        }
 
         return res;
     }
@@ -113,37 +118,39 @@ namespace mygl
     bool Mesh::mat_init(const aiScene *scene)
     {
         bool res = true;
-        size_t skip = 0;
 
         for (size_t i = 0; i < scene->mNumMaterials; ++i)
         {
-            size_t idx = i - skip;
             const auto material = scene->mMaterials[i];
             if (material->GetTextureCount(aiTextureType_DIFFUSE) > 0)
-            {
-                res &= load_texture_entry(idx * 3, material,
-                                          aiTextureType_DIFFUSE);
-                if (material->GetTextureCount(aiTextureType_HEIGHT) > 0)
-                    res &= load_texture_entry(idx * 3 + 1, material,
-                                              aiTextureType_HEIGHT);
-                else
-                {
-                    texture_entries_[idx * 3 + 1] = std::make_unique<Texture>(
-                        "../data/texture/normal_white.png");
-                    texture_entries_[idx * 3 + 1]->load();
-                }
-                if (material->GetTextureCount(aiTextureType_DISPLACEMENT) > 0)
-                    res &= load_texture_entry(idx * 3 + 2, material,
-                                              aiTextureType_DISPLACEMENT);
-                else
-                {
-                    texture_entries_[idx * 3 + 2] =
-                        std::make_unique<Texture>("../data/texture/white.png");
-                    texture_entries_[idx * 3 + 2]->load();
-                }
-            }
+                res &=
+                    load_texture_entry(i * 3, material, aiTextureType_DIFFUSE);
             else
-                ++skip;
+            {
+                texture_entries_[i * 3] =
+                    std::make_unique<Texture>("../data/texture/white.png");
+                texture_entries_[i * 3]->load();
+            }
+
+            if (material->GetTextureCount(aiTextureType_HEIGHT) > 0)
+                res &= load_texture_entry(i * 3 + 1, material,
+                                          aiTextureType_HEIGHT);
+            else
+            {
+                texture_entries_[i * 3 + 1] = std::make_unique<Texture>(
+                    "../data/texture/normal_white.png");
+                texture_entries_[i * 3 + 1]->load();
+            }
+
+            if (material->GetTextureCount(aiTextureType_DISPLACEMENT) > 0)
+                res &= load_texture_entry(i * 3 + 2, material,
+                                          aiTextureType_DISPLACEMENT);
+            else
+            {
+                texture_entries_[i * 3 + 2] =
+                    std::make_unique<Texture>("../data/texture/white.png");
+                texture_entries_[i * 3 + 2]->load();
+            }
         }
 
         return res;
