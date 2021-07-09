@@ -21,8 +21,9 @@ GLint gAmbientLight;
 GLint gLightPositionLocation;
 GLint gLightColorLocation;
 GLint gTextureLocation;
+GLint gNormalsLocation;
+GLint gHeightLocation;
 
-std::vector<Texture> v_texture;
 Mesh *scene;
 
 void display(void)
@@ -56,8 +57,11 @@ void display(void)
     glUniform3fv(gLightColorLocation, 1, &light_color[0]);
     glUniform1f(gAmbientLight, ambient_light);
 
-    scene->render();
     glUniform1i(gTextureLocation, 0);
+    glUniform1i(gNormalsLocation, 1);
+    glUniform1i(gHeightLocation, 2);
+
+    scene->render();
     // glutPostRedisplay();
     glutSwapBuffers();
 }
@@ -111,15 +115,12 @@ bool setup_vao(GLuint program_id)
     gLightColorLocation = glGetUniformLocation(program_id, "light_color");
     gAmbientLight = glGetUniformLocation(program_id, "ambient_light");
     gTextureLocation = glGetUniformLocation(program_id, "texture_sampler");
+    gNormalsLocation = glGetUniformLocation(program_id, "normal_sampler");
+    gHeightLocation = glGetUniformLocation(program_id, "height_sampler");
 
     scene = new Mesh("../data/model/pyramid_mat.obj");
     if (!scene->load())
         return false;
-
-    v_texture.emplace_back("../data/texture/Seamless_Pebbles_Texture.jpg");
-    if (!v_texture[0].load())
-        return false;
-
     return true;
 }
 

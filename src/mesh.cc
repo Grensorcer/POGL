@@ -28,7 +28,9 @@ namespace mygl
         for (size_t i = 0; i < mesh_entries_.size(); ++i)
         {
             glBindVertexArray(mesh_entries_[i].VAO);
-            texture_entries_[i]->bind(GL_TEXTURE0);
+            texture_entries_[i * 3]->bind(GL_TEXTURE0);
+            texture_entries_[i * 3 + 1]->bind(GL_TEXTURE1);
+            texture_entries_[i * 3 + 2]->bind(GL_TEXTURE2);
 
             glDrawElements(GL_TRIANGLES, mesh_entries_[i].num_indices,
                            GL_UNSIGNED_INT, (void *)0);
