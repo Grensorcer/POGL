@@ -1,9 +1,12 @@
 #pragma once
 #include <vector>
+#include <string>
+#include <memory>
 #include <GL/glew.h>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <assimp/scene.h>
+#include "texture.hh"
 
 namespace mygl
 {
@@ -20,6 +23,9 @@ namespace mygl
     private:
         bool scene_init(const aiScene *scene);
         void mesh_init(unsigned int idx, const aiMesh *mesh);
+        bool mat_init(const aiScene *scene);
+        bool load_texture_entry(size_t idx, const aiMaterial *const material,
+                                aiTextureType type);
 
 #define INVALID_MATERIAL 0xFFFFFFFF
 
@@ -40,10 +46,12 @@ namespace mygl
                       const std::vector<unsigned int> &indices);
 
             GLuint VAO;
+            unsigned int material_index;
             unsigned int num_indices;
         };
 
-        const char *name_;
+        std::string name_;
+        std::vector<std::unique_ptr<Texture>> texture_entries_;
         std::vector<MeshEntry> mesh_entries_;
     };
 } // namespace mygl

@@ -18,28 +18,27 @@ namespace mygl
         if (scene)
             res = scene_init(scene);
         else
-            std::cout << "Could not initialize scene from " << name_ << '\n';
+            std::cerr << "Could not initialize scene from " << name_ << '\n';
 
         return res;
     }
 
     void Mesh::render()
     {
-        std::cout << mesh_entries_.size() << '\n';
         for (size_t i = 0; i < mesh_entries_.size(); ++i)
         {
             glBindVertexArray(mesh_entries_[i].VAO);
+            texture_entries_[i]->bind(GL_TEXTURE0);
 
             glDrawElements(GL_TRIANGLES, mesh_entries_[i].num_indices,
                            GL_UNSIGNED_INT, (void *)0);
-            // glDrawElements(GL_TRIANGLES, 3 * 4, GL_UNSIGNED_SHORT, (void
-            // *)0);
         }
         glBindVertexArray(0);
     }
     bool Mesh::scene_init(const aiScene *scene)
     {
         mesh_entries_.resize(scene->mNumMeshes);
+        texture_entries_.resize(scene->mNumMeshes * 3);
 
         for (size_t i = 0; i < mesh_entries_.size(); ++i)
         {
@@ -47,7 +46,7 @@ namespace mygl
             mesh_init(i, mesh);
         }
 
-        return true;
+        return mat_init(scene);
     }
     void Mesh::mesh_init(unsigned int idx, const aiMesh *mesh)
     {
@@ -82,7 +81,70 @@ namespace mygl
             indices.push_back(face.mIndices[2]);
         }
 
+        mesh_entries_[idx].material_index = idx;
         mesh_entries_[idx].init(vertices, normals, uvs, indices);
+    }
+
+    bool Mesh::load_texture_entry(size_t idx, const aiMaterial *const material,
+                                  aiTextureType type)
+    {
+        aiString path;
+        bool res = true;
+        if (material->GetTexture(type, 0, &path, NULL, NULL, NULL, NULL, NULL)
+            == AI_SUCCESS)
+        {
+            texture_entries_[idx] = std::make_unique<Texture>(path.data);
+
+            if (!texture_entries_[idx]->load())
+            {
+                std::cerr << "Error loading texture " << path.data << '\n';
+                texture_entries_[idx].reset(nullptr);
+                res = false;
+            }
+        }
+        else
+            res = false;
+
+        return res;
+    }
+
+    bool Mesh::mat_init(const aiScene *scene)
+    {
+        bool res = true;
+        size_t skip = 0;
+
+        for (size_t i = 0; i < scene->mNumMaterials; ++i)
+        {
+            size_t idx = i - skip;
+            const auto material = scene->mMaterials[i];
+            if (material->GetTextureCount(aiTextureType_DIFFUSE) > 0)
+            {
+                res &= load_texture_entry(idx * 3, material,
+                                          aiTextureType_DIFFUSE);
+                if (material->GetTextureCount(aiTextureType_HEIGHT) > 0)
+                    res &= load_texture_entry(idx * 3 + 1, material,
+                                              aiTextureType_HEIGHT);
+                else
+                {
+                    texture_entries_[idx * 3 + 1] = std::make_unique<Texture>(
+                        "../data/texture/normal_white.png");
+                    texture_entries_[idx * 3 + 1]->load();
+                }
+                if (material->GetTextureCount(aiTextureType_DISPLACEMENT) > 0)
+                    res &= load_texture_entry(idx * 3 + 2, material,
+                                              aiTextureType_DISPLACEMENT);
+                else
+                {
+                    texture_entries_[idx * 3 + 2] =
+                        std::make_unique<Texture>("../data/texture/white.png");
+                    texture_entries_[idx * 3 + 2]->load();
+                }
+            }
+            else
+                ++skip;
+        }
+
+        return res;
     }
 
     void Mesh::MeshEntry::init(const std::vector<glm::vec3> &vertices,

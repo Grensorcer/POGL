@@ -1,6 +1,7 @@
 #include "texture.hh"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include <iostream>
 
 namespace mygl
 {
@@ -22,7 +23,10 @@ namespace mygl
         stbi_set_flip_vertically_on_load(true);
         unsigned char *data = stbi_load(name_, &width, &height, &n, 0);
         if (!data)
+        {
+            std::cerr << "Could not load texture " << name_ << '\n';
             return false;
+        }
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
                      GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
