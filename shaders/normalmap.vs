@@ -9,7 +9,6 @@ uniform mat4 wvp;
 uniform vec3 light_position;
 uniform vec3 view_position;
 
-out vec3 Normal;
 out vec2 TexCoord;
 out vec3 LightDir;
 out vec3 ViewDir;
@@ -27,7 +26,6 @@ void main(void){
     mat3 w2t=build_w2t();
     vec3 wvPos=vec3(world*vec4(vPosition,1));
     gl_Position=wvp*vec4(vPosition,1.);
-    Normal=w2t*normalize(vec3(world*vec4(vNormal,1)));
     LightDir=w2t*normalize(light_position-wvPos);
     ViewDir=w2t*normalize(view_position-wvPos);
     TexCoord=vTexture;

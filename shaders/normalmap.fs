@@ -1,6 +1,4 @@
 #version 450
-in vec4 Color;
-in vec3 Normal;
 in vec3 ViewDir;
 in vec3 LightDir;
 in vec2 TexCoord;

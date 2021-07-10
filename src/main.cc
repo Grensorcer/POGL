@@ -144,8 +144,8 @@ int main(int argc, char **argv)
         return 1;
     initGl();
 
-    auto vsrc = utils::read_file_content("../shaders/first.vs");
-    auto fsrc = utils::read_file_content("../shaders/first.fs");
+    auto vsrc = utils::read_file_content("../shaders/normalmap.vs");
+    auto fsrc = utils::read_file_content("../shaders/normalmap.fs");
 
     program test = program::make_program(vsrc, fsrc);
     if (!test.is_ready())
