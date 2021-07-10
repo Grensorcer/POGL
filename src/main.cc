@@ -17,7 +17,9 @@
 
 using namespace mygl;
 
+GLint gWorldMatrixLocation;
 GLint gProjectionMatrixLocation;
+GLint gViewPositionLocation;
 GLint gAmbientLight;
 GLint gLightPositionLocation;
 GLint gLightColorLocation;
@@ -34,14 +36,16 @@ void display(void)
     static float delta = 0.005f;
     static float ambient_light = 0.3f;
 
-    glm::vec3 light_position{ 4, 2, 4 };
+    glm::vec3 light_position{ 0, 3, 0 };
     glm::vec3 light_color{ 1, 1, 1 };
 
-    glm::mat4 model = glm::mat4(1.0f);
+    glm::mat4 world = glm::mat4(1.0f);
     glm::mat4 projection =
         glm::perspective(glm::radians(45.f), 1960.f / 1080.f, 0.1f, 100.f);
+
+    glm::vec3 view_position = glm::vec3(0, 2, 5);
     glm::mat4 view =
-        glm::lookAt(glm::vec3(4, 0, 4), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+        glm::lookAt(view_position, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
     projection *= view;
 
     scale += delta;
@@ -49,11 +53,13 @@ void display(void)
         delta *= -1;
 
     // model = glm::scale(model, glm::vec3(scale));
-    model = glm::rotate(model, scale * 3, glm::vec3(0, 1, 0));
-    // model = glm::translate(model, glm::vec3(0, 0, 0));
-    projection *= model;
+    world = glm::rotate(world, scale * 3, glm::vec3(1, 0, 0));
+    // world = glm::translate(world, glm::vec3(scale, 0, 0));
+    projection *= world;
 
+    glUniformMatrix4fv(gWorldMatrixLocation, 1, false, &world[0][0]);
     glUniformMatrix4fv(gProjectionMatrixLocation, 1, false, &projection[0][0]);
+    glUniform3fv(gViewPositionLocation, 1, &view_position[0]);
     glUniform3fv(gLightPositionLocation, 1, &light_position[0]);
     glUniform3fv(gLightColorLocation, 1, &light_color[0]);
     glUniform1f(gAmbientLight, ambient_light);
@@ -111,8 +117,9 @@ bool initGl()
 
 bool setup_vao(GLuint program_id)
 {
-    gProjectionMatrixLocation =
-        glGetUniformLocation(program_id, "projection_matrix");
+    gProjectionMatrixLocation = glGetUniformLocation(program_id, "wvp");
+    gWorldMatrixLocation = glGetUniformLocation(program_id, "world");
+    gViewPositionLocation = glGetUniformLocation(program_id, "view_position");
     gLightPositionLocation = glGetUniformLocation(program_id, "light_position");
     gLightColorLocation = glGetUniformLocation(program_id, "light_color");
     gAmbientLight = glGetUniformLocation(program_id, "ambient_light");
