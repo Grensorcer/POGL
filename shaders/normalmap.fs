@@ -21,7 +21,7 @@ float GetShadowFactor(vec3 Normal,vec3 LightDir)
     vec2 uvs=vec2(proj.x,proj.y);
     float cur_d=proj.z;
     float d=texture(shadowmap_sampler,uvs).x;
-    float b=max(.005*(1-dot(Normal,LightDir)),.0005);
+    float b=max(.0005*(1-dot(Normal,LightDir)),.00005);
     return cur_d-b>d?0:1;
 }
 

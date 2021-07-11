@@ -48,11 +48,15 @@ void set_uniforms(const glm::vec3 &light_position)
     glUniform1i(gShadowMapLocation, 3);
 }
 
-void shadow_frame(const glm::mat4 &world, const glm::mat4 &projection,
-                  const glm::vec3 &view_position)
+void shadow_frame(const glm::mat4 &world, const glm::vec3 &view_position)
 {
+    glViewport(0, 0, 1024, 1024);
     shadow_map.write();
     glClear(GL_DEPTH_BUFFER_BIT);
+
+    glm::mat4 projection =
+        glm::perspective(glm::radians(45.f), 1960.f / 1080.f, 0.1f, 100.f);
+    // glm::mat4 projection = glm::ortho(-10.f, 10.f, -10.f, 10.f, 1.f, 7.5f);
 
     glm::mat4 view =
         glm::lookAt(view_position, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
@@ -68,13 +72,16 @@ void shadow_frame(const glm::mat4 &world, const glm::mat4 &projection,
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void complete_frame(const glm::mat4 &world, const glm::mat4 &projection,
-                    const glm::vec3 &light_position)
+void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
 {
+    glViewport(0, 0, 1960, 1080);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shadow_map.read(GL_TEXTURE3);
 
-    glm::vec3 view_position = glm::vec3(3, 2, 5);
+    glm::mat4 projection =
+        glm::perspective(glm::radians(45.f), 1960.f / 1080.f, 0.1f, 100.f);
+
+    glm::vec3 view_position = glm::vec3(10, 10, 10);
     glm::mat4 view =
         glm::lookAt(view_position, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
     glm::mat4 light_view =
@@ -98,7 +105,7 @@ void display()
     if (scale >= 1 || scale <= -1)
         delta *= -1;
 
-    glm::vec3 light_position{ 1, 5, 1 };
+    glm::vec3 light_position{ 2, 2, 2 };
     set_uniforms(light_position);
 
     glm::mat4 world = glm::mat4(1.0f);
@@ -107,11 +114,8 @@ void display()
     // world = glm::translate(world, glm::vec3(scale, 0, 0));
     glUniformMatrix4fv(gWorldMatrixLocation, 1, false, &world[0][0]);
 
-    glm::mat4 projection =
-        glm::perspective(glm::radians(45.f), 1960.f / 1080.f, 0.1f, 100.f);
-
-    shadow_frame(world, projection, light_position);
-    complete_frame(world, projection, light_position);
+    shadow_frame(world, light_position);
+    complete_frame(world, light_position);
     // glutPostRedisplay();
     glutSwapBuffers();
 }
@@ -172,7 +176,7 @@ bool setup_vao(GLuint program_id)
     gHeightLocation = glGetUniformLocation(program_id, "height_sampler");
     gShadowMapLocation = glGetUniformLocation(program_id, "shadowmap_sampler");
 
-    if (!shadow_map.init(1960, 1080))
+    if (!shadow_map.init(1024, 1024))
         return false;
 
     scene.emplace_back(new Mesh("../data/model/monkey_plane.obj"));
