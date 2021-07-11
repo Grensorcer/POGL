@@ -28,7 +28,7 @@ float GetShadowFactor(vec3 Normal,vec3 LightDir)
 float GetDepthIntersection(vec2 TangentDir,vec2 TexCoord)
 {
     const int lin_search_steps=10;
-    const int bin_search_steps=5;
+    const int bin_search_steps=16;
     float step_depth=1.f/lin_search_steps;
     float step=step_depth;
     float depth=0;
@@ -38,7 +38,7 @@ float GetDepthIntersection(vec2 TangentDir,vec2 TexCoord)
     {
         depth+=step;
         vec2 uv=TexCoord+depth*TangentDir;
-        if(best_depth>=.996&&texture(height_sampler,uv).x>=depth)
+        if(best_depth>=.996&&1-texture(height_sampler,uv).x<=depth)
         {
             best_depth=depth;
         }
@@ -48,7 +48,7 @@ float GetDepthIntersection(vec2 TangentDir,vec2 TexCoord)
     {
         step*=.5;
         vec2 uv=TexCoord+depth*TangentDir;
-        if(depth<=texture(height_sampler,uv).x)
+        if(depth>=1-texture(height_sampler,uv).x)
         {
             best_depth=depth;
             depth-=2*step;
@@ -65,10 +65,20 @@ void main(){
     vec2 TangentViewDir=ViewDir.xy*magic_number/ViewDir.z;
     float BestDepth=GetDepthIntersection(TangentViewDir,TexCoord);
     vec2 NewTexCoord=TexCoord+BestDepth*TangentViewDir;
+    /*
+    vec4 testcolor=texture(height_sampler,NewTexCoord);
+    // bool test=abs(testcolor.r-.1)<.01;
+    bool test=testcolor.r>=.4&&testcolor.r<=1.;
+    if(test)
+    {
+        FragColor=vec4(.9,.1,.9,1);
+        return;
+    }
+    */
     
     vec2 TangentLightDir=LightDir.xy*magic_number/LightDir.z;
     float LightDepth=GetDepthIntersection(TangentLightDir,NewTexCoord-BestDepth*TangentLightDir);
-    float SelfShadowFactor=LightDepth<BestDepth-.05?0:1;
+    float SelfShadowFactor=LightDepth<BestDepth-.05?.3:1;
     
     vec3 NewNormal=normalize(texture(normal_sampler,NewTexCoord).rgb*2-1);
     vec3 ReflectDir=reflect(-LightDir,NewNormal);
@@ -80,6 +90,6 @@ void main(){
     vec3 DiffuseColor=light_color*max(dot(NewNormal,LightDir),0);
     vec3 SpecularColor=light_color*SpecIntensity*pow(max(dot(ViewDir,ReflectDir),0),shininess);
     vec4 TextureColor=texture(texture_sampler,NewTexCoord);
-    FragColor=clamp(vec4(AmbientColor+ShadowFactor*(DiffuseColor+SpecularColor),1)*TextureColor,0,1);
-    // FragColor=texture(height_sampler,TexCoord);
+    FragColor=clamp(vec4(AmbientColor+SelfShadowFactor*ShadowFactor*(DiffuseColor+SpecularColor),1)*TextureColor,0,1);
+    //FragColor=vec4(vec3(texture(height_sampler,NewTexCoord).r),1);
 }

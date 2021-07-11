@@ -81,7 +81,7 @@ void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
     glm::mat4 projection =
         glm::perspective(glm::radians(45.f), 1960.f / 1080.f, 0.1f, 100.f);
 
-    glm::vec3 view_position = glm::vec3(0, 0.5, 3);
+    glm::vec3 view_position = glm::vec3(3, 2, 5);
     glm::mat4 view =
         glm::lookAt(view_position, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
     glm::mat4 light_view =
@@ -105,12 +105,12 @@ void display()
     if (scale >= 1 || scale <= -1)
         delta *= -1;
 
-    glm::vec3 light_position{ -2, 0, 4 };
+    glm::vec3 light_position{ 3, 3, 4 };
     set_uniforms(light_position);
 
     glm::mat4 world = glm::mat4(1.0f);
     // world = glm::scale(model, glm::vec3(scale));
-    world = glm::rotate(world, scale * 3, glm::vec3(1, 0, 0));
+    world = glm::rotate(world, scale * 3, glm::vec3(0, 1, 0));
     // world = glm::translate(world, glm::vec3(scale, 0, 0));
     glUniformMatrix4fv(gWorldMatrixLocation, 1, false, &world[0][0]);
 
@@ -179,7 +179,7 @@ bool setup_vao(GLuint program_id)
     if (!shadow_map.init(1024, 1024))
         return false;
 
-    scene.emplace_back(new Mesh("../data/model/cube.obj"));
+    scene.emplace_back(new Mesh("../data/model/monkey_plane.obj"));
 
     for (auto &mesh : scene)
     {
