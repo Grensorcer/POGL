@@ -12,6 +12,7 @@ uniform vec3 view_position;
 
 out vec2 TexCoord;
 out vec3 wvPos;
+out vec3 testPos;
 out vec3 LightPos;
 out vec3 ViewPos;
 out vec4 lwvPos;
@@ -29,6 +30,7 @@ void main(void){
     gl_Position=wvp*vec4(vPosition,1.);
     mat3 w2t=build_w2t();
     wvPos=w2t*vec3(world*vec4(vPosition,1));
+    testPos=w2t*vec3(wvp*vec4(vPosition,1));
     lwvPos=light_wvp*vec4(vPosition,1);
     LightPos=w2t*light_position;
     ViewPos=w2t*view_position;

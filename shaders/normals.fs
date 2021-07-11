@@ -1,9 +1,10 @@
 #version 450
 in vec3 Normal;
-in vec3 ViewDir;
-in vec3 LightDir;
+in vec3 wvPos;
 in vec2 TexCoord;
 
+uniform vec3 light_position;
+uniform vec3 view_position;
 uniform vec3 light_color;
 
 uniform sampler2D texture_sampler;
@@ -11,6 +12,8 @@ uniform float ambient_light;
 
 out vec4 FragColor;
 void main(){
+    vec3 LightDir=normalize(light_position-wvPos);
+    vec3 ViewDir=normalize(view_position-wvPos);
     vec3 ReflectDir=reflect(-LightDir,Normal);
     
     float SpecIntensity=.5;
