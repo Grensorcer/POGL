@@ -36,7 +36,7 @@ vec2 ParallaxMapping(vec2 texCoords, vec3 viewDir){
     vec2  currentTexCoords     = texCoords;
     float currentDepthMapValue = texture(height_sampler, currentTexCoords).r;
       
-    while(currentLayerDepth > currentDepthMapValue)
+    while(1 - currentLayerDepth > currentDepthMapValue)
     {
         // shift texture coordinates along direction of P
         currentTexCoords -= deltaTexCoords;
