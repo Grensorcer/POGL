@@ -4,7 +4,7 @@ project(GLTP VERSION 0.1 LANGUAGES CXX)
 
 # find_package(assimp REQUIRED)
 
-set(SRC src/program.cc src/utils.cc src/texture.cc src/mesh.cc src/shadow_map.cc)
+set(SRC src/program.cc src/utils.cc src/texture.cc src/mesh.cc src/shadow_map.cc src/camera.cc)
 
 add_executable(GLTPexe src/main.cc ${SRC})
 target_compile_features(GLTPexe PUBLIC cxx_std_17)

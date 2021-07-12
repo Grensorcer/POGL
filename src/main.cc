@@ -15,6 +15,7 @@
 #include "texture.hh"
 #include "mesh.hh"
 #include "shadow_map.hh"
+#include "camera.hh"
 
 using namespace mygl;
 
@@ -32,6 +33,17 @@ GLint gShadowMapLocation;
 
 std::vector<std::unique_ptr<Mesh>> scene;
 ShadowMap shadow_map;
+static Camera camera{ 1960, 1080, glm::vec3(3, 3, 3), glm::vec3(0, 0, -1),
+                      glm::vec3(0, 1, 0) };
+
+static void mouse_function(int x, int y)
+{
+    camera.on_mouse(x, y);
+}
+static void camera_keypress_function(int key, int x, int y)
+{
+    camera.on_keypress(key);
+}
 
 void set_uniforms(const glm::vec3 &light_position)
 {
@@ -81,9 +93,8 @@ void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
     glm::mat4 projection =
         glm::perspective(glm::radians(45.f), 1960.f / 1080.f, 0.1f, 100.f);
 
-    glm::vec3 view_position = glm::vec3(3, 2, 5);
-    glm::mat4 view =
-        glm::lookAt(view_position, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+    glm::mat4 view = glm::lookAt(
+        camera.position(), camera.position() + camera.target(), camera.up());
     glm::mat4 light_view =
         glm::lookAt(light_position, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
     const auto wvp = projection * view * world;
@@ -91,7 +102,7 @@ void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
 
     glUniformMatrix4fv(gProjectionMatrixLocation, 1, false, &wvp[0][0]);
     glUniformMatrix4fv(gLightProjectionMatrixLocation, 1, false, &lwvp[0][0]);
-    glUniform3fv(gViewPositionLocation, 1, &view_position[0]);
+    glUniform3fv(gViewPositionLocation, 1, &(camera.position()[0]));
 
     for (auto &mesh : scene)
         mesh->render();
@@ -114,6 +125,7 @@ void display()
     // world = glm::translate(world, glm::vec3(scale, 0, 0));
     glUniformMatrix4fv(gWorldMatrixLocation, 1, false, &world[0][0]);
 
+    camera.on_render();
     shadow_frame(world, light_position);
     complete_frame(world, light_position);
     // glutPostRedisplay();
@@ -131,6 +143,10 @@ bool initGlut(int *argc, char **argv)
     glutCreateWindow("My first render");
     glutDisplayFunc(display);
     glutIdleFunc(display);
+    glutPassiveMotionFunc(mouse_function);
+    glutSpecialFunc(camera_keypress_function);
+    glutGameModeString("1960x1080@32");
+    glutEnterGameMode();
     return true;
 }
 
@@ -179,7 +195,7 @@ bool setup_vao(GLuint program_id)
     if (!shadow_map.init(1024, 1024))
         return false;
 
-    scene.emplace_back(new Mesh("../data/model/monkey_plane.obj"));
+    scene.emplace_back(new Mesh("../data/model/cube.obj"));
 
     for (auto &mesh : scene)
     {
