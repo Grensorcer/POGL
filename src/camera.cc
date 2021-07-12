@@ -2,7 +2,7 @@
 #include <glm/geometric.hpp>
 #include <iostream>
 
-#define STEP_SIZE 1.f
+#define STEP_SIZE 0.3f
 
 namespace mygl
 {
@@ -57,12 +57,12 @@ namespace mygl
             break;
         }
         case GLUT_KEY_LEFT: {
-            glm::vec3 l = glm::normalize(glm::cross(target_, up_)) * STEP_SIZE;
+            glm::vec3 l = glm::normalize(glm::cross(up_, target_)) * STEP_SIZE;
             position_ += l;
             break;
         }
         case GLUT_KEY_RIGHT: {
-            glm::vec3 r = glm::normalize(glm::cross(up_, target_)) * STEP_SIZE;
+            glm::vec3 r = glm::normalize(glm::cross(target_, up_)) * STEP_SIZE;
             position_ += r;
             break;
         }
@@ -83,8 +83,8 @@ namespace mygl
         const int dy = y - mouse_position_.y;
         mouse_position_.x = x;
         mouse_position_.y = y;
-        horizontal_angle_ -= dx / 20.f;
-        vertical_angle_ += dy / 20.f;
+        horizontal_angle_ -= dx / 10.f;
+        vertical_angle_ += dy / 10.f;
 
         if (!dx)
         {
