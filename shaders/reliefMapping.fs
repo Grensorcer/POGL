@@ -90,6 +90,6 @@ void main(){
     vec3 DiffuseColor=light_color*max(dot(NewNormal,LightDir),0);
     vec3 SpecularColor=light_color*SpecIntensity*pow(max(dot(ViewDir,ReflectDir),0),shininess);
     vec4 TextureColor=texture(texture_sampler,NewTexCoord);
-    FragColor=clamp(vec4(AmbientColor+SelfShadowFactor*ShadowFactor*(DiffuseColor+SpecularColor),1)*TextureColor,0,1);
+    FragColor=clamp(vec4(AmbientColor+SelfShadowFactor*(DiffuseColor+SpecularColor),1)*TextureColor,0,1);
     //FragColor=vec4(vec3(texture(height_sampler,NewTexCoord).r),1);
 }
