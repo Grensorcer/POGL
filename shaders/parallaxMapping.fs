@@ -21,35 +21,30 @@ void main() {
 
     float size = 1.0 / numLayer;
 
-    float currLayerDepth = 0.0;
+    float layer = 0.0;
 
     vec2 P = ViewDir.xy / ViewDir.z * 0.01; 
-    vec2 deltaTexCoord = P / numLayer;
+    vec2 d = P / numLayer;
+    vec2 uv = TexCoord;
 
-    vec2 currCoord = TexCoord;
-    float currDepthMapValue = texture(height_sampler, currCoord).x;
-      
-    while(1 - currLayerDepth > currDepthMapValue)
+    while(1 - layer > texture(height_sampler, uv).x)
     {
-        currCoord -= deltaTexCoord;
-        currDepthMapValue = texture(height_sampler, currCoord).x;
-        currLayerDepth += size;  
+        uv -= d;
+        layer += size;  
     }
 
-    vec2 prevTexCoords = currCoord + deltaTexCoord;
-
-    float afterDepth  = currDepthMapValue - currLayerDepth;
-    float beforeDepth = texture(height_sampler, prevTexCoords).x - currLayerDepth + size;
-
+    vec2 uv2 = uv + d;
+    float afterDepth  = texture(height_sampler, uv).x - layer;
+    float beforeDepth = texture(height_sampler, uv2).x - layer + size;
     float weight = afterDepth / (afterDepth - beforeDepth);
-    vec2 finalTexCoords = prevTexCoords * weight + currCoord * (1.0 - weight);
 
-    if(finalTexCoords.x > 1.0 || finalTexCoords.y > 1.0 || finalTexCoords.x < 0.0 || finalTexCoords.y < 0.0) {
+    vec2 finalUV = uv2 * weight + uv * (1.0 - weight);
+    if(finalUV.x > 1.0 || finalUV.y > 1.0 || finalUV.x < 0.0 || finalUV.y < 0.0) {
         FragColor = vec4(0, 0, 0, 0);
         return;
     }
-        
-    vec3 NewNormal = normalize(texture(normal_sampler,finalTexCoords).rgb*2-1);
+
+    vec3 NewNormal = normalize(texture(normal_sampler,finalUV).rgb*2-1);
     vec3 ReflectDir = reflect(-LightDir,NewNormal);
 
     float SpecIntensity = 0.5;
@@ -60,6 +55,6 @@ void main() {
     vec3 DiffuseColor = light_color * diff;
 
     vec3 SpecularColor = light_color * SpecIntensity * pow(max(dot(ViewDir, ReflectDir),0), shininess);
-    vec4 TextureColor = texture(texture_sampler, TexCoord);
+    vec4 TextureColor = texture(texture_sampler, finalUV);
     FragColor=clamp(vec4(AmbientColor + DiffuseColor + SpecularColor, 1) * TextureColor, 0, 1);
 }
