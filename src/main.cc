@@ -116,7 +116,7 @@ void display()
     if (scale >= 1 || scale <= -1)
         delta *= -1;
 
-    glm::vec3 light_position{ 3, 3, 4 };
+    glm::vec3 light_position{ 4, 5, 4 };
     set_uniforms(light_position);
 
     glm::mat4 world = glm::mat4(1.0f);
@@ -171,7 +171,7 @@ bool initGl()
     // glDepthRange(0., 1.);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glEnable(GL_CULL_FACE);
-    glClearColor(0, 0, 0, 0);
+    glClearColor(0.5, 0.5, 0.9, 0);
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(utils::messageCallback, 0);
     return true;
@@ -195,7 +195,7 @@ bool setup_vao(GLuint program_id)
     if (!shadow_map.init(1024, 1024))
         return false;
 
-    scene.emplace_back(new Mesh("../data/model/cube.obj"));
+    scene.emplace_back(new Mesh("../data/model/big_skull.obj"));
 
     for (auto &mesh : scene)
     {
@@ -212,8 +212,8 @@ int main(int argc, char **argv)
         return 1;
     initGl();
 
-    auto vsrc = utils::read_file_content("../shaders/depthmap.vs");
-    auto fsrc = utils::read_file_content("../shaders/depthmap.fs");
+    auto vsrc = utils::read_file_content("../shaders/reliefMapping.vs");
+    auto fsrc = utils::read_file_content("../shaders/reliefMapping.fs");
 
     program test = program::make_program(vsrc, fsrc);
     if (!test.is_ready())
