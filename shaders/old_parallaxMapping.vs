@@ -6,16 +6,16 @@ layout(location=3)in vec2 vTexture;
 
 uniform mat4 world;
 uniform mat4 wvp;
-uniform mat4 light_wvp;
 uniform vec3 light_position;
 uniform vec3 view_position;
 
 out vec2 TexCoord;
-out vec3 wvPos;
-out vec3 testPos;
-out vec3 LightPos;
-out vec3 ViewPos;
-out vec4 lwvPos;
+out vec3 LightDir;
+out vec3 ViewDir;
+
+out vec3 FragPos;
+out vec3 TangentLightPos;
+out vec3 TangentFragPos;
 
 mat3 build_w2t()
 {
@@ -27,12 +27,16 @@ mat3 build_w2t()
 }
 
 void main(void){
-    gl_Position=wvp*vec4(vPosition,1.);
     mat3 w2t=build_w2t();
-    wvPos=w2t*vec3(world*vec4(vPosition,1));
-    testPos=w2t*vec3(wvp*vec4(vPosition,1));
-    lwvPos=light_wvp*vec4(vPosition,1);
-    LightPos=w2t*light_position;
-    ViewPos=w2t*view_position;
+    
+    FragPos   = vec3(world * vec4(vPosition, 1.0)); 
+
+    TangentLightPos = w2t * light_position;
+    TangentFragPos  = w2t * FragPos;
+
+    vec3 wvPos=vec3(world*vec4(vPosition,1));
+    gl_Position=wvp*vec4(vPosition,1.);
+    LightDir=w2t*normalize(light_position-wvPos);
+    ViewDir=w2t*normalize(view_position-wvPos);
     TexCoord=vTexture;
 }

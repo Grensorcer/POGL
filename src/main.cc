@@ -33,7 +33,7 @@ GLint gShadowMapLocation;
 
 std::vector<std::unique_ptr<Mesh>> scene;
 ShadowMap shadow_map;
-static Camera camera{ 1960, 1080, glm::vec3(3, 3, 3), glm::vec3(0, 0, -1),
+static Camera camera{ 1920, 1080, glm::vec3(3, 4, 8), glm::vec3(0, 0, -1),
                       glm::vec3(0, 1, 0) };
 
 static void mouse_function(int x, int y)
@@ -67,7 +67,7 @@ void shadow_frame(const glm::mat4 &world, const glm::vec3 &view_position)
     glClear(GL_DEPTH_BUFFER_BIT);
 
     glm::mat4 projection =
-        glm::perspective(glm::radians(45.f), 1960.f / 1080.f, 0.1f, 100.f);
+        glm::perspective(glm::radians(45.f), 1920.f / 1080.f, 0.1f, 100.f);
     // glm::mat4 projection = glm::ortho(-10.f, 10.f, -10.f, 10.f, 1.f, 7.5f);
 
     glm::mat4 view =
@@ -86,12 +86,12 @@ void shadow_frame(const glm::mat4 &world, const glm::vec3 &view_position)
 
 void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
 {
-    glViewport(0, 0, 1960, 1080);
+    glViewport(0, 0, 1920, 1080);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shadow_map.read(GL_TEXTURE3);
 
     glm::mat4 projection =
-        glm::perspective(glm::radians(45.f), 1960.f / 1080.f, 0.1f, 100.f);
+        glm::perspective(glm::radians(45.f), 1920.f / 1080.f, 0.1f, 100.f);
 
     glm::mat4 view = glm::lookAt(
         camera.position(), camera.position() + camera.target(), camera.up());
@@ -110,19 +110,20 @@ void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
 
 void display()
 {
-    static float scale = 0.f;
-    static float delta = 0.005f;
-    scale += delta;
-    if (scale >= 1 || scale <= -1)
-        delta *= -1;
+    static float rotation = 0.f;
+    static float delta = 0.001f;
+    rotation += delta;
+    if (rotation >= 1)
+        rotation = 0;
 
-    glm::vec3 light_position{ 4, 5, 4 };
+    glm::vec3 light_position{ 8, 8, 8 };
     set_uniforms(light_position);
 
     glm::mat4 world = glm::mat4(1.0f);
-    // world = glm::scale(model, glm::vec3(scale));
-    world = glm::rotate(world, scale * 3, glm::vec3(0, 1, 0));
-    // world = glm::translate(world, glm::vec3(scale, 0, 0));
+    // world = glm::rotation(model, glm::vec3(rotation));
+    world =
+        glm::rotate(world, glm::radians(rotation * 360), glm::vec3(0, 1, 0));
+    // world = glm::translate(world, glm::vec3(rotation, 0, 0));
     glUniformMatrix4fv(gWorldMatrixLocation, 1, false, &world[0][0]);
 
     camera.on_render();
@@ -138,14 +139,14 @@ bool initGlut(int *argc, char **argv)
     glutInitContextVersion(4, 5);
     glutInitContextProfile(GLUT_CORE_PROFILE);
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
-    glutInitWindowSize(1960, 1080);
+    glutInitWindowSize(1920, 1080);
     glutInitWindowPosition(10, 10);
     glutCreateWindow("My first render");
     glutDisplayFunc(display);
     glutIdleFunc(display);
     glutPassiveMotionFunc(mouse_function);
     glutSpecialFunc(camera_keypress_function);
-    glutGameModeString("1960x1080@32");
+    glutGameModeString("1920x1080@32");
     glutEnterGameMode();
     return true;
 }
@@ -171,7 +172,7 @@ bool initGl()
     // glDepthRange(0., 1.);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glEnable(GL_CULL_FACE);
-    glClearColor(0.5, 0.5, 0.9, 0);
+    glClearColor(149.f / 255.f, 213.f / 255.f, 230.f / 255.f, 0);
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(utils::messageCallback, 0);
     return true;
@@ -212,8 +213,8 @@ int main(int argc, char **argv)
         return 1;
     initGl();
 
-    auto vsrc = utils::read_file_content("../shaders/reliefMapping.vs");
-    auto fsrc = utils::read_file_content("../shaders/reliefMapping.fs");
+    auto vsrc = utils::read_file_content("../shaders/parallaxMapping.vs");
+    auto fsrc = utils::read_file_content("../shaders/parallaxMapping.fs");
 
     program test = program::make_program(vsrc, fsrc);
     if (!test.is_ready())

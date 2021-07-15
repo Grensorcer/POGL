@@ -1,60 +1,50 @@
 #version 450
+in vec3 wvPos;
+in vec4 lwvPos;
+in vec3 LightPos;
+in vec3 ViewPos;
 in vec2 TexCoord;
-in vec3 LightDir;
-in vec3 ViewDir;
-
-in vec3 FragPos;
-in vec3 TangentLightPos;
-in vec3 TangentFragPos;
 
 uniform vec3 light_color;
 
 uniform sampler2D texture_sampler;
 uniform sampler2D normal_sampler;
 uniform sampler2D height_sampler;
+uniform sampler2D shadowmap_sampler;
 uniform float ambient_light;
 
 out vec4 FragColor;
 
-void main() {
-    float numLayer = mix(32, 8, abs(ViewDir.z));  
+vec2 GetNewUv(vec2 uv,vec3 view_dir,float magic_number)
+{
+    return uv-(view_dir.xy/view_dir.z)*(1-texture(height_sampler,uv).r)*magic_number;
+}
 
-    float size = 1.0 / numLayer;
-
-    float layer = 0.0;
-
-    vec2 P = ViewDir.xy / ViewDir.z * 0.01; 
-    vec2 d = P / numLayer;
-    vec2 uv = TexCoord;
-
-    while(1 - layer > texture(height_sampler, uv).x)
+void main(){
+    vec3 LightDir=normalize(LightPos-wvPos);
+    vec3 ViewDir=normalize(ViewPos-wvPos);
+    float magic_number=.05;
+    vec2 NewTexCoord=GetNewUv(TexCoord,ViewDir,magic_number);
+    /*
+    vec4 testcolor=texture(height_sampler,NewTexCoord);
+    // bool test=abs(testcolor.r-.1)<.01;
+    bool test=testcolor.r>=.4&&testcolor.r<=1.;
+    if(test)
     {
-        uv -= d;
-        layer += size;  
-    }
-
-    vec2 uv2 = uv + d;
-    float afterDepth  = texture(height_sampler, uv).x - layer;
-    float beforeDepth = texture(height_sampler, uv2).x - layer + size;
-    float weight = afterDepth / (afterDepth - beforeDepth);
-
-    vec2 finalUV = uv2 * weight + uv * (1.0 - weight);
-    if(finalUV.x > 1.0 || finalUV.y > 1.0 || finalUV.x < 0.0 || finalUV.y < 0.0) {
-        FragColor = vec4(0, 0, 0, 0);
+        FragColor=vec4(.9,.1,.9,1);
         return;
     }
-
-    vec3 NewNormal = normalize(texture(normal_sampler,finalUV).rgb*2-1);
-    vec3 ReflectDir = reflect(-LightDir,NewNormal);
-
-    float SpecIntensity = 0.5;
-    int shininess = 32;
-    vec3 AmbientColor = vec3(1,1,1) * ambient_light;
-
-    float diff = max(dot(NewNormal, LightDir), 0);
-    vec3 DiffuseColor = light_color * diff;
-
-    vec3 SpecularColor = light_color * SpecIntensity * pow(max(dot(ViewDir, ReflectDir),0), shininess);
-    vec4 TextureColor = texture(texture_sampler, finalUV);
-    FragColor=clamp(vec4(AmbientColor + DiffuseColor + SpecularColor, 1) * TextureColor, 0, 1);
+    */
+    
+    vec3 NewNormal=normalize(texture(normal_sampler,NewTexCoord).rgb*2-1);
+    vec3 ReflectDir=reflect(-LightDir,NewNormal);
+    
+    float SpecIntensity=.5;
+    int shininess=32;
+    vec3 AmbientColor=vec3(1,1,1)*ambient_light;
+    vec3 DiffuseColor=light_color*max(dot(NewNormal,LightDir),0);
+    vec3 SpecularColor=light_color*SpecIntensity*pow(max(dot(ViewDir,ReflectDir),0),shininess);
+    vec4 TextureColor=texture(texture_sampler,NewTexCoord);
+    FragColor=clamp(vec4(AmbientColor+(DiffuseColor+SpecularColor),1)*TextureColor,0,1);
+    //FragColor=vec4(vec3(texture(height_sampler,NewTexCoord).r),1);
 }
