@@ -22,7 +22,7 @@ float GetShadowFactor(vec3 Normal,vec3 LightDir)
     float cur_d=proj.z;
     float d=texture(shadowmap_sampler,uvs).x;
     float b=max(.0005*(1-dot(Normal,LightDir)),.00005);
-    return cur_d-b>d?0:1;
+    return cur_d-b>d?.2:1;
 }
 
 float GetDepthIntersection(vec2 TangentDir,vec2 TexCoord)
@@ -78,7 +78,7 @@ void main(){
     
     vec2 TangentLightDir=LightDir.xy*magic_number/LightDir.z;
     float LightDepth=GetDepthIntersection(TangentLightDir,NewTexCoord-BestDepth*TangentLightDir);
-    float SelfShadowFactor=LightDepth<BestDepth-.05?.3:1;
+    float SelfShadowFactor=LightDepth<BestDepth-.05?.2:1;
     
     vec3 NewNormal=normalize(texture(normal_sampler,NewTexCoord).rgb*2-1);
     vec3 ReflectDir=reflect(-LightDir,NewNormal);
