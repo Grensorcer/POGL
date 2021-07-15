@@ -38,7 +38,7 @@ float GetDepthIntersection(vec2 TangentDir,vec2 TexCoord)
     {
         depth+=step;
         vec2 uv=TexCoord+depth*TangentDir;
-        if(best_depth>=.996&&texture(height_sampler,uv).x<=depth)
+        if(best_depth>=.996&&1-texture(height_sampler,uv).x<=depth)
         {
             best_depth=depth;
         }
@@ -48,7 +48,7 @@ float GetDepthIntersection(vec2 TangentDir,vec2 TexCoord)
     {
         step*=.5;
         vec2 uv=TexCoord+depth*TangentDir;
-        if(depth>=texture(height_sampler,uv).x)
+        if(depth>=1-texture(height_sampler,uv).x)
         {
             best_depth=depth;
             depth-=2*step;
