@@ -6,13 +6,16 @@ layout(location=3)in vec2 vTexture;
 
 uniform mat4 world;
 uniform mat4 wvp;
+uniform mat4 light_wvp;
 
 out vec3 Normal;
 out vec2 TexCoord;
 out vec3 wvPos;
+out vec4 lwvPos;
 
 void main(void){
     wvPos=vec3(world*vec4(vPosition,1));
+    lwvPos=light_wvp*vec4(vPosition,1);
     gl_Position=wvp*vec4(vPosition,1.);
     Normal=normalize(vec3(world*vec4(vNormal,1)));
     TexCoord=vTexture;

@@ -43,7 +43,7 @@ namespace mygl
         ulrd_[2] = false;
         ulrd_[3] = false;
         mouse_position_.x = width_ / 2;
-        mouse_position_.y = width_ / 2;
+        mouse_position_.y = height_ / 2;
 
         // glutWarpPointer(mouse_position_.x, mouse_position_.y);
     }
@@ -154,12 +154,12 @@ namespace mygl
             glm::rotate(horizontal_rot, glm::radians(horizontal_angle_), v);
 
         auto view = glm::vec3(1.f, 0.f, 0.f);
-        view = glm::normalize(glm::vec3(horizontal_rot * glm::vec4(view, 1.f)));
+        view = glm::normalize(glm::vec3(horizontal_rot * glm::vec4(view, 0.f)));
 
         const glm::vec h = normalize(glm::cross(v, view));
         vertical_rot =
             glm::rotate(vertical_rot, glm::radians(vertical_angle_), h);
-        view = glm::normalize(glm::vec3(vertical_rot * glm::vec4(view, 1.f)));
+        view = glm::normalize(glm::vec3(vertical_rot * glm::vec4(view, 0.f)));
 
         target_ = view;
         up_ = normalize(glm::cross(target_, h));

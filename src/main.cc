@@ -3,6 +3,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <map>
 #include <GL/glew.h>
 #include <GL/freeglut.h>
 #include <glm/vec3.hpp>
@@ -32,15 +33,18 @@ GLint gHeightLocation;
 GLint gShadowMapLocation;
 
 std::vector<std::unique_ptr<Mesh>> scene;
-ShadowMap shadow_map;
-static Camera camera{ 1920, 1080, glm::vec3(3, 4, 8), glm::vec3(0, 0, -1),
-                      glm::vec3(0, 1, 0) };
+std::map<std::string, std::shared_ptr<program>> shaders;
 
-static void mouse_function(int x, int y)
+ShadowMap shadow_map;
+
+Camera camera{ 1920, 1080, glm::vec3(3, 4, 8), glm::vec3(0, 0, -1),
+               glm::vec3(0, 1, 0) };
+
+void mouse_function(int x, int y)
 {
     camera.on_mouse(x, y);
 }
-static void camera_keypress_function(int key, int x, int y)
+void camera_keypress_function(int key, int x, int y)
 {
     camera.on_keypress(key);
 }
@@ -67,8 +71,9 @@ void shadow_frame(const glm::mat4 &world, const glm::vec3 &view_position)
     glClear(GL_DEPTH_BUFFER_BIT);
 
     glm::mat4 projection =
-        glm::perspective(glm::radians(45.f), 1920.f / 1080.f, 0.1f, 100.f);
-    // glm::mat4 projection = glm::ortho(-10.f, 10.f, -10.f, 10.f, 1.f, 7.5f);
+        glm::perspective(glm::radians(45.f), 1920.f / 1080.f, 0.1f, 1000.f);
+    // glm::mat4 projection = glm::ortho(-10.f, 10.f, -10.f, 10.f, 0.1f,
+    // 1000.f);
 
     glm::mat4 view =
         glm::lookAt(view_position, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
@@ -79,7 +84,7 @@ void shadow_frame(const glm::mat4 &world, const glm::vec3 &view_position)
     glUniform3fv(gViewPositionLocation, 1, &view_position[0]);
 
     for (auto &mesh : scene)
-        mesh->render();
+        mesh->render(*shaders["render"]);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -91,7 +96,7 @@ void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
     shadow_map.read(GL_TEXTURE3);
 
     glm::mat4 projection =
-        glm::perspective(glm::radians(45.f), 1920.f / 1080.f, 0.1f, 100.f);
+        glm::perspective(glm::radians(45.f), 1920.f / 1080.f, 0.1f, 1000.f);
 
     glm::mat4 view = glm::lookAt(
         camera.position(), camera.position() + camera.target(), camera.up());
@@ -105,7 +110,7 @@ void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
     glUniform3fv(gViewPositionLocation, 1, &(camera.position()[0]));
 
     for (auto &mesh : scene)
-        mesh->render();
+        mesh->render(*shaders["render"]);
 }
 
 void display()
@@ -116,11 +121,10 @@ void display()
     if (rotation >= 1)
         rotation = 0;
 
-    glm::vec3 light_position{ 8, 8, 8 };
+    glm::vec3 light_position{ 15, 15, 15 };
     set_uniforms(light_position);
 
     glm::mat4 world = glm::mat4(1.0f);
-    // world = glm::rotation(model, glm::vec3(rotation));
     world =
         glm::rotate(world, glm::radians(rotation * 360), glm::vec3(0, 1, 0));
     // world = glm::translate(world, glm::vec3(rotation, 0, 0));
@@ -146,6 +150,7 @@ bool initGlut(int *argc, char **argv)
     glutIdleFunc(display);
     glutPassiveMotionFunc(mouse_function);
     glutSpecialFunc(camera_keypress_function);
+    glutWarpPointer(camera.mouse_x(), camera.mouse_y());
     glutGameModeString("1920x1080@32");
     glutEnterGameMode();
     return true;
@@ -171,7 +176,7 @@ bool initGl()
     glDepthFunc(GL_LESS);
     // glDepthRange(0., 1.);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    glEnable(GL_CULL_FACE);
+    // glEnable(GL_CULL_FACE);
     glClearColor(149.f / 255.f, 213.f / 255.f, 230.f / 255.f, 0);
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(utils::messageCallback, 0);
@@ -196,7 +201,7 @@ bool setup_vao(GLuint program_id)
     if (!shadow_map.init(1024, 1024))
         return false;
 
-    scene.emplace_back(new Mesh("../data/model/big_skull.obj"));
+    scene.emplace_back(new Mesh("../data/model/cloth.obj"));
 
     for (auto &mesh : scene)
     {
@@ -213,19 +218,21 @@ int main(int argc, char **argv)
         return 1;
     initGl();
 
-    auto vsrc = utils::read_file_content("../shaders/parallaxMapping.vs");
-    auto fsrc = utils::read_file_content("../shaders/parallaxMapping.fs");
+    auto vsrc = utils::read_file_content("../shaders/reliefMapping.vs");
+    auto fsrc = utils::read_file_content("../shaders/reliefMapping.fs");
 
-    program test = program::make_program(vsrc, fsrc);
-    if (!test.is_ready())
+    auto render = program::make_program(vsrc, fsrc);
+    shaders["render"] = render;
+
+    if (!render->is_ready())
     {
-        std::cerr << test.get_log();
+        std::cerr << render->get_log();
         return 1;
     }
 
-    test.use();
+    render->use();
 
-    if (!setup_vao(test.id()))
+    if (!setup_vao(render->id()))
     {
         std::cerr << "VAO setup failed\n";
         return 1;

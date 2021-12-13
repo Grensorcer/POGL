@@ -7,6 +7,7 @@
 #include <glm/vec3.hpp>
 #include <assimp/scene.h>
 #include "texture.hh"
+#include "program.hh"
 
 namespace mygl
 {
@@ -18,7 +19,8 @@ namespace mygl
         {}
         ~Mesh() = default;
         bool load();
-        void render();
+        void render(const mygl::program &program);
+        void compute(const mygl::program &compute_program);
 
     private:
         bool scene_init(const aiScene *scene);
@@ -47,6 +49,10 @@ namespace mygl
                       const std::vector<unsigned int> &indices);
 
             GLuint VAO;
+            GLuint vertex_VBO;
+            GLuint normal_VBO;
+            GLuint SSBO;
+
             unsigned int material_index;
             unsigned int num_indices;
         };

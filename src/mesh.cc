@@ -24,8 +24,22 @@ namespace mygl
         return res;
     }
 
-    void Mesh::render()
+    void Mesh::compute(const mygl::program &compute_program)
     {
+        compute_program.use();
+        for (const auto &mesh_entry : mesh_entries_)
+        {
+            glBindVertexArray(mesh_entry.VAO);
+            glBindBuffer(GL_SHADER_STORAGE_BUFFER, mesh_entry.vertex_VBO);
+        }
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+
+    void Mesh::render(const mygl::program &program)
+    {
+        program.use();
         for (const auto &mesh_entry : mesh_entries_)
         {
             glBindVertexArray(mesh_entry.VAO);
@@ -171,8 +185,6 @@ namespace mygl
         glGenVertexArrays(1, &VAO);
         glBindVertexArray(VAO);
 
-        GLuint vertex_VBO;
-        GLuint normal_VBO;
         GLuint tangent_VBO;
         GLuint uv_VBO;
         GLuint IBO;
@@ -213,6 +225,18 @@ namespace mygl
                      sizeof(unsigned int) * indices.size(), &(indices.front()),
                      GL_STATIC_DRAW);
 
+        glGenBuffers(1, &SSBO);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, s * vertices.size(),
+                     &(vertices.front()), GL_STATIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, SSBO);
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, normal_VBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, s * normals.size(),
+                     &(normals.front()), GL_STATIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, SSBO);
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         glBindVertexArray(0);
     }
 } // namespace mygl

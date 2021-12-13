@@ -63,7 +63,7 @@ namespace utils
                                     const GLchar *message, const void *)
     {
         std::string msg = "Opengl: type: " + gl_error_string(type) + ' '
-            + std::string((const char *)message);
+            + std::string((const char *)message) + '\n';
 
         switch (severity)
         {

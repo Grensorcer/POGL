@@ -51,6 +51,16 @@ namespace mygl
             return up_;
         }
 
+        float mouse_x()
+        {
+            return mouse_position_.x;
+        }
+
+        float mouse_y()
+        {
+            return mouse_position_.y;
+        }
+
         bool on_keypress(int key);
         void on_mouse(int x, int y);
         void on_render();
