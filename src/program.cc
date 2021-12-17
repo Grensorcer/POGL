@@ -5,114 +5,67 @@ namespace mygl
     program::program()
         : id_{ glCreateProgram() }
     {}
+
     program::~program()
     {
         glDeleteProgram(id_);
     }
 
-    std::shared_ptr<program> program::make_program(std::string &vs_src,
-                                                   std::string &fs_src)
+    bool program::add_shader(const std::string &src, GLuint shader_type)
     {
-        // Initialize program and vars
-        auto p = std::make_shared<program>();
         GLint is_ok, logs_length;
         char *tmp_logs;
 
-        // Create and compile vertex shader
-        const auto vs_csrc = vs_src.c_str();
-        GLuint vs_id_ = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vs_id_, 1, &vs_csrc, NULL);
-        glCompileShader(vs_id_);
+        const auto csrc = src.c_str();
+        auto shader_id = glCreateShader(shader_type);
+        shader_ids.push_back(shader_id);
+        glShaderSource(shader_id, 1, &csrc, NULL);
+        glCompileShader(shader_id);
 
-        // Vertex shader error check
-        glGetShaderiv(vs_id_, GL_INFO_LOG_LENGTH, &logs_length);
-        glGetShaderiv(vs_id_, GL_COMPILE_STATUS, &is_ok);
+        glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &logs_length);
+        glGetShaderiv(shader_id, GL_COMPILE_STATUS, &is_ok);
         tmp_logs = new char[logs_length];
-        glGetShaderInfoLog(vs_id_, logs_length, NULL, tmp_logs);
-        p->append_log(tmp_logs);
+        glGetShaderInfoLog(shader_id, logs_length, NULL, tmp_logs);
+        append_log(tmp_logs);
         delete[] tmp_logs;
 
-        if (!is_ok)
-            return p;
-
-        // Create and compile fragment shader
-        const auto fs_csrc = fs_src.c_str();
-        GLuint fs_id_ = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fs_id_, 1, &fs_csrc, NULL);
-        glCompileShader(fs_id_);
-
-        // Fragment shader error check
-        glGetShaderiv(fs_id_, GL_INFO_LOG_LENGTH, &logs_length);
-        glGetShaderiv(fs_id_, GL_COMPILE_STATUS, &is_ok);
-        tmp_logs = new char[logs_length];
-        glGetShaderInfoLog(fs_id_, logs_length, NULL, tmp_logs);
-        p->append_log(tmp_logs);
-        delete[] tmp_logs;
-        if (!is_ok)
-            return p;
-
-        // Link everything
-        glAttachShader(p->id_, vs_id_);
-        glAttachShader(p->id_, fs_id_);
-        glLinkProgram(p->id_);
-
-        glDeleteShader(vs_id_);
-        glDeleteShader(fs_id_);
-
-        // Check linking problems
-        glGetProgramiv(p->id_, GL_INFO_LOG_LENGTH, &logs_length);
-        glGetProgramiv(p->id_, GL_LINK_STATUS, &is_ok);
-        tmp_logs = new char[logs_length];
-        glGetProgramInfoLog(p->id_, logs_length, NULL, tmp_logs);
-        p->append_log(tmp_logs);
-        delete[] tmp_logs;
-        if (!is_ok)
-            return p;
-
-        p->ready_ = true;
-        return p;
+        return is_ok;
     }
 
-    std::shared_ptr<program> program::make_compute(std::string &cs_src)
+    bool program::link()
     {
-        // Initialize program and vars
-        auto p = std::make_shared<program>();
         GLint is_ok, logs_length;
         char *tmp_logs;
 
-        // Create and compile vertex shader
-        const auto cs_csrc = cs_src.c_str();
-        GLuint cs_id_ = glCreateShader(GL_COMPUTE_SHADER);
-        glShaderSource(cs_id_, 1, &cs_csrc, NULL);
-        glCompileShader(cs_id_);
+        for (const auto shader_id : shader_ids)
+            glAttachShader(id_, shader_id);
 
-        // Vertex shader error check
-        glGetShaderiv(cs_id_, GL_INFO_LOG_LENGTH, &logs_length);
-        glGetShaderiv(cs_id_, GL_COMPILE_STATUS, &is_ok);
-        tmp_logs = new char[logs_length];
-        glGetShaderInfoLog(cs_id_, logs_length, NULL, tmp_logs);
-        p->append_log(tmp_logs);
-        delete[] tmp_logs;
+        glLinkProgram(id_);
 
-        if (!is_ok)
-            return p;
-        // Link everything
-        glAttachShader(p->id_, cs_id_);
-        glLinkProgram(p->id_);
-
-        glDeleteShader(cs_id_);
+        for (const auto shader_id : shader_ids)
+            glDeleteShader(shader_id);
 
         // Check linking problems
-        glGetProgramiv(p->id_, GL_INFO_LOG_LENGTH, &logs_length);
-        glGetProgramiv(p->id_, GL_LINK_STATUS, &is_ok);
+        glGetProgramiv(id_, GL_INFO_LOG_LENGTH, &logs_length);
+        glGetProgramiv(id_, GL_LINK_STATUS, &is_ok);
         tmp_logs = new char[logs_length];
-        glGetProgramInfoLog(p->id_, logs_length, NULL, tmp_logs);
-        p->append_log(tmp_logs);
+        glGetProgramInfoLog(id_, logs_length, NULL, tmp_logs);
+        append_log(tmp_logs);
         delete[] tmp_logs;
-        if (!is_ok)
-            return p;
 
-        p->ready_ = true;
+        return is_ok;
+    }
+
+    std::shared_ptr<program>
+    program::make_program(const std::map<GLuint, std::string> &shader_sources)
+    {
+        // Initialize program and vars
+        auto p = std::make_shared<program>();
+        for (const auto &shader : shader_sources)
+            if (!p->add_shader(shader.second, shader.first))
+                return p;
+
+        p->ready_ = p->link();
         return p;
     }
 

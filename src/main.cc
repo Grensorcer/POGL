@@ -221,8 +221,11 @@ int main(int argc, char **argv)
 
     auto vsrc = utils::read_file_content("../shaders/reliefMapping.vs");
     auto fsrc = utils::read_file_content("../shaders/reliefMapping.fs");
+    const std::map<GLuint, std::string> shader_map{
+        { GL_VERTEX_SHADER, vsrc }, { GL_FRAGMENT_SHADER, fsrc }
+    };
 
-    auto render = program::make_program(vsrc, fsrc);
+    auto render = program::make_program(shader_map);
     shaders["render"] = render;
 
     if (!render->is_ready())
