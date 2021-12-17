@@ -1,4 +1,6 @@
 #include "shadow_map.hh"
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/ext/matrix_clip_space.hpp>
 #include <iostream>
 
 namespace mygl
@@ -11,6 +13,9 @@ namespace mygl
 
     bool DirectionalShadowMap::init(unsigned int width, unsigned int height)
     {
+        projection =
+            glm::perspective(glm::radians(45.f), 1920.f / 1080.f, 0.1f, 1000.f);
+
         glGenFramebuffers(1, &fbo_);
         glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
 

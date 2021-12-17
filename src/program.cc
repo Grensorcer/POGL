@@ -44,6 +44,7 @@ namespace mygl
 
         for (const auto shader_id : shader_ids)
             glDeleteShader(shader_id);
+        shader_ids.clear();
 
         // Check linking problems
         glGetProgramiv(id_, GL_INFO_LOG_LENGTH, &logs_length);

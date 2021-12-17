@@ -64,24 +64,51 @@ void set_uniforms(const glm::vec3 &light_position)
     glUniform1i(gShadowMapLocation, 3);
 }
 
-void directional_shadow_frame(const glm::mat4 &world,
+void directional_shadow_frame(DirectionalShadowMap &shadow_map,
+                              const glm::mat4 &world,
                               const glm::vec3 &view_position)
 {
     glViewport(0, 0, 1024, 1024);
     shadow_map.write();
     glClear(GL_DEPTH_BUFFER_BIT);
 
-    glm::mat4 projection =
-        glm::perspective(glm::radians(45.f), 1920.f / 1080.f, 0.1f, 1000.f);
     // glm::mat4 projection = glm::ortho(-10.f, 10.f, -10.f, 10.f, 0.1f,
     // 1000.f);
 
-    glm::mat4 view =
-        glm::lookAt(view_position, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-    const auto wvp = projection * view * world;
+    shadow_map.set_view(view_position);
+    const auto wvp =
+        shadow_map.get_projection() * shadow_map.get_view() * world;
 
     glUniformMatrix4fv(gProjectionMatrixLocation, 1, false, &wvp[0][0]);
     glUniformMatrix4fv(gLightProjectionMatrixLocation, 1, false, &wvp[0][0]);
+    glUniform3fv(gViewPositionLocation, 1, &view_position[0]);
+
+    for (auto &mesh : scene)
+        mesh->render(*shaders["render"]);
+
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+}
+
+void cube_shadow_frame(CubeShadowMap &shadow_map, const glm::mat4 &world,
+                       const glm::vec3 &view_position)
+{
+    glViewport(0, 0, 1024, 1024);
+    shadow_map.write();
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    // glm::mat4 projection = glm::ortho(-10.f, 10.f, -10.f, 10.f, 0.1f,
+    // 1000.f);
+
+    shadow_map.set_view(view_position);
+    const GLfloat *wvps[6];
+    for (short i = 0; i < 6; ++i)
+    {
+        const auto wvp =
+            shadow_map.get_projection() * shadow_map.get_view(i) * world;
+        wvps[i] = &wvp[0][0];
+    }
+    glUniformMatrix4fv(gProjectionMatrixLocation, 6, false, *wvps);
+    glUniformMatrix4fv(gLightProjectionMatrixLocation, 6, false, *wvps);
     glUniform3fv(gViewPositionLocation, 1, &view_position[0]);
 
     for (auto &mesh : scene)
@@ -132,7 +159,7 @@ void display()
     glUniformMatrix4fv(gWorldMatrixLocation, 1, false, &world[0][0]);
 
     camera.on_render();
-    directional_shadow_frame(world, light_position);
+    directional_shadow_frame(shadow_map, world, light_position);
     complete_frame(world, light_position);
     // glutPostRedisplay();
     glutSwapBuffers();
