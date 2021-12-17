@@ -35,7 +35,7 @@ GLint gShadowMapLocation;
 std::vector<std::unique_ptr<Mesh>> scene;
 std::map<std::string, std::shared_ptr<program>> shaders;
 
-ShadowMap shadow_map;
+DirectionalShadowMap shadow_map;
 
 Camera camera{ 1920, 1080, glm::vec3(3, 4, 8), glm::vec3(0, 0, -1),
                glm::vec3(0, 1, 0) };
@@ -44,7 +44,7 @@ void mouse_function(int x, int y)
 {
     camera.on_mouse(x, y);
 }
-void camera_keypress_function(int key, int x, int y)
+void camera_keypress_function(int key, int, int)
 {
     camera.on_keypress(key);
 }
@@ -64,7 +64,8 @@ void set_uniforms(const glm::vec3 &light_position)
     glUniform1i(gShadowMapLocation, 3);
 }
 
-void shadow_frame(const glm::mat4 &world, const glm::vec3 &view_position)
+void directional_shadow_frame(const glm::mat4 &world,
+                              const glm::vec3 &view_position)
 {
     glViewport(0, 0, 1024, 1024);
     shadow_map.write();
@@ -86,7 +87,7 @@ void shadow_frame(const glm::mat4 &world, const glm::vec3 &view_position)
     for (auto &mesh : scene)
         mesh->render(*shaders["render"]);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 }
 
 void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
@@ -131,7 +132,7 @@ void display()
     glUniformMatrix4fv(gWorldMatrixLocation, 1, false, &world[0][0]);
 
     camera.on_render();
-    shadow_frame(world, light_position);
+    directional_shadow_frame(world, light_position);
     complete_frame(world, light_position);
     // glutPostRedisplay();
     glutSwapBuffers();
@@ -151,8 +152,8 @@ bool initGlut(int *argc, char **argv)
     glutPassiveMotionFunc(mouse_function);
     glutSpecialFunc(camera_keypress_function);
     glutWarpPointer(camera.mouse_x(), camera.mouse_y());
-    glutGameModeString("1920x1080@32");
-    glutEnterGameMode();
+    // glutGameModeString("1920x1080@32");
+    // glutEnterGameMode();
     return true;
 }
 
@@ -201,7 +202,7 @@ bool setup_vao(GLuint program_id)
     if (!shadow_map.init(1024, 1024))
         return false;
 
-    scene.emplace_back(new Mesh("../data/model/cloth.obj"));
+    scene.emplace_back(new Mesh("../data/model/elephant_plane.obj"));
 
     for (auto &mesh : scene)
     {
