@@ -50,6 +50,9 @@ namespace mygl
 
     bool CubeShadowMap::init(unsigned int width, unsigned int height)
     {
+        projection = glm::perspective(glm::radians(90.f),
+                                      (float)width / (float)height, 1.f, 25.f);
+
         glGenFramebuffers(1, &fbo_);
         glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
 

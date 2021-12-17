@@ -105,12 +105,14 @@ namespace mygl
         glUniform1f(glGetUniformLocation(id_, name.c_str()), value);
     }
 
-    void program::set_vec3(const std::string &name, glm::vec3 value) const
+    void program::set_vec3(const std::string &name,
+                           const glm::vec3 &value) const
     {
         glUniform3fv(glGetUniformLocation(id_, name.c_str()), 1, &value[0]);
     }
 
-    void program::set_mat4(const std::string &name, glm::mat4 value) const
+    void program::set_mat4(const std::string &name,
+                           const glm::mat4 &value) const
     {
         glUniformMatrix4fv(glGetUniformLocation(id_, name.c_str()), 1, false,
                            &value[0][0]);

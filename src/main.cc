@@ -20,20 +20,8 @@
 
 using namespace mygl;
 
-GLint gWorldMatrixLocation;
-GLint gProjectionMatrixLocation;
-GLint gLightProjectionMatrixLocation;
-GLint gViewPositionLocation;
-GLint gAmbientLight;
-GLint gLightPositionLocation;
-GLint gLightColorLocation;
-GLint gTextureLocation;
-GLint gNormalsLocation;
-GLint gHeightLocation;
-GLint gShadowMapLocation;
-
 std::vector<std::unique_ptr<Mesh>> scene;
-std::map<std::string, std::shared_ptr<program>> shaders;
+std::map<std::string, std::shared_ptr<program>> programs;
 
 DirectionalShadowMap shadow_map;
 
@@ -49,25 +37,24 @@ void camera_keypress_function(int key, int, int)
     camera.on_keypress(key);
 }
 
-void set_uniforms(const glm::vec3 &light_position)
+void set_uniforms(program &program, const glm::vec3 &light_position)
 {
+    program.use();
     glm::vec3 light_color{ 1, 1, 1 };
     static float ambient_light = 0.1f;
 
-    glUniform3fv(gLightPositionLocation, 1, &light_position[0]);
-    glUniform3fv(gLightColorLocation, 1, &light_color[0]);
-    glUniform1f(gAmbientLight, ambient_light);
-
-    glUniform1i(gTextureLocation, 0);
-    glUniform1i(gNormalsLocation, 1);
-    glUniform1i(gHeightLocation, 2);
-    glUniform1i(gShadowMapLocation, 3);
+    program.set_vec3("light_position", light_position);
+    program.set_vec3("light_color", light_color);
+    program.set_float("ambient_light", ambient_light);
 }
 
 void directional_shadow_frame(DirectionalShadowMap &shadow_map,
                               const glm::mat4 &world,
                               const glm::vec3 &view_position)
 {
+    auto &program = programs["render"];
+    program->use();
+
     glViewport(0, 0, 1024, 1024);
     shadow_map.write();
     glClear(GL_DEPTH_BUFFER_BIT);
@@ -79,20 +66,23 @@ void directional_shadow_frame(DirectionalShadowMap &shadow_map,
     const auto wvp =
         shadow_map.get_projection() * shadow_map.get_view() * world;
 
-    glUniformMatrix4fv(gProjectionMatrixLocation, 1, false, &wvp[0][0]);
-    glUniformMatrix4fv(gLightProjectionMatrixLocation, 1, false, &wvp[0][0]);
-    glUniform3fv(gViewPositionLocation, 1, &view_position[0]);
+    program->set_mat4("world", world);
+    program->set_mat4("wvp", wvp);
+    program->set_mat4("light_wvp", wvp);
+    program->set_vec3("view_position", view_position);
 
     for (auto &mesh : scene)
-        mesh->render(*shaders["render"]);
+        mesh->render(*program);
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 }
 
-void cube_shadow_frame(CubeShadowMap &shadow_map, const glm::mat4 &world,
+void cube_shadow_frame(CubeShadowMap &shadow_map,
                        const glm::vec3 &view_position)
 {
-    glViewport(0, 0, 1024, 1024);
+    auto &program = programs["cube_shadow"];
+    program->use();
+    glViewport(0, 0, 1920, 1080);
     shadow_map.write();
     glClear(GL_DEPTH_BUFFER_BIT);
 
@@ -100,25 +90,25 @@ void cube_shadow_frame(CubeShadowMap &shadow_map, const glm::mat4 &world,
     // 1000.f);
 
     shadow_map.set_view(view_position);
-    const GLfloat *wvps[6];
+    program->set_float("far_plane", 25.f);
+    program->set_vec3("view_position", view_position);
     for (short i = 0; i < 6; ++i)
     {
-        const auto wvp =
-            shadow_map.get_projection() * shadow_map.get_view(i) * world;
-        wvps[i] = &wvp[0][0];
+        const auto wvp = shadow_map.get_projection() * shadow_map.get_view(i);
+        auto cur = "wvp[" + std::to_string(i) + ']';
+        program->set_mat4(cur, wvp);
     }
-    glUniformMatrix4fv(gProjectionMatrixLocation, 6, false, *wvps);
-    glUniformMatrix4fv(gLightProjectionMatrixLocation, 6, false, *wvps);
-    glUniform3fv(gViewPositionLocation, 1, &view_position[0]);
 
     for (auto &mesh : scene)
-        mesh->render(*shaders["render"]);
+        mesh->render(*program);
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 }
 
 void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
 {
+    auto &program = programs["render"];
+    program->use();
     glViewport(0, 0, 1920, 1080);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shadow_map.read(GL_TEXTURE3);
@@ -133,12 +123,13 @@ void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
     const auto wvp = projection * view * world;
     const auto lwvp = projection * light_view * world;
 
-    glUniformMatrix4fv(gProjectionMatrixLocation, 1, false, &wvp[0][0]);
-    glUniformMatrix4fv(gLightProjectionMatrixLocation, 1, false, &lwvp[0][0]);
-    glUniform3fv(gViewPositionLocation, 1, &(camera.position()[0]));
+    program->set_mat4("world", world);
+    program->set_mat4("wvp", wvp);
+    program->set_mat4("light_wvp", lwvp);
+    program->set_vec3("view_position", camera.position());
 
     for (auto &mesh : scene)
-        mesh->render(*shaders["render"]);
+        mesh->render(*program);
 }
 
 void display()
@@ -150,13 +141,12 @@ void display()
         rotation = 0;
 
     glm::vec3 light_position{ 15, 15, 15 };
-    set_uniforms(light_position);
+    set_uniforms(*programs["render"], light_position);
 
     glm::mat4 world = glm::mat4(1.0f);
     world =
         glm::rotate(world, glm::radians(rotation * 360), glm::vec3(0, 1, 0));
     // world = glm::translate(world, glm::vec3(rotation, 0, 0));
-    glUniformMatrix4fv(gWorldMatrixLocation, 1, false, &world[0][0]);
 
     camera.on_render();
     directional_shadow_frame(shadow_map, world, light_position);
@@ -211,8 +201,9 @@ bool initGl()
     return true;
 }
 
-bool setup_vao(GLuint program_id)
+void setup_uniforms(program &p)
 {
+    /*
     gProjectionMatrixLocation = glGetUniformLocation(program_id, "wvp");
     gLightProjectionMatrixLocation =
         glGetUniformLocation(program_id, "light_wvp");
@@ -220,12 +211,22 @@ bool setup_vao(GLuint program_id)
     gViewPositionLocation = glGetUniformLocation(program_id, "view_position");
     gLightPositionLocation = glGetUniformLocation(program_id, "light_position");
     gLightColorLocation = glGetUniformLocation(program_id, "light_color");
+    gFarPlaneLocation = glGetUniformLocation(program_id, "far_plane");
     gAmbientLight = glGetUniformLocation(program_id, "ambient_light");
     gTextureLocation = glGetUniformLocation(program_id, "texture_sampler");
     gNormalsLocation = glGetUniformLocation(program_id, "normal_sampler");
     gHeightLocation = glGetUniformLocation(program_id, "height_sampler");
     gShadowMapLocation = glGetUniformLocation(program_id, "shadowmap_sampler");
+    */
 
+    p.set_int("texture_sampler", 0);
+    p.set_int("normal_sampler", 1);
+    p.set_int("height_sampler", 2);
+    p.set_int("shadowmap_sampler", 3);
+}
+
+bool setup_scene()
+{
     if (!shadow_map.init(1024, 1024))
         return false;
 
@@ -239,6 +240,46 @@ bool setup_vao(GLuint program_id)
     return true;
 }
 
+bool setup_shaders()
+{
+    auto rvsrc = utils::read_file_content("../shaders/reliefMapping.vs");
+    auto rfsrc = utils::read_file_content("../shaders/reliefMapping.fs");
+
+    auto svsrc = utils::read_file_content("../shaders/cubeShadowMap.vs");
+    auto sgsrc = utils::read_file_content("../shaders/cubeShadowMap.gs");
+    auto sfsrc = utils::read_file_content("../shaders/cubeShadowMap.fs");
+
+    std::map<GLuint, std::string> shader_map{ { GL_VERTEX_SHADER, rvsrc },
+                                              { GL_FRAGMENT_SHADER, rfsrc } };
+
+    auto render = program::make_program(shader_map);
+    programs["render"] = render;
+
+    shader_map[GL_VERTEX_SHADER] = svsrc;
+    shader_map[GL_GEOMETRY_SHADER] = sgsrc;
+    shader_map[GL_FRAGMENT_SHADER] = sfsrc;
+    auto cube_shadow = program::make_program(shader_map);
+    programs["cube_shadow"] = cube_shadow;
+
+    if (!render->is_ready())
+    {
+        std::cerr << render->get_log();
+        return false;
+    }
+    if (!cube_shadow->is_ready())
+    {
+        std::cerr << cube_shadow->get_log();
+        return false;
+    }
+
+    cube_shadow->use();
+    setup_uniforms(*cube_shadow);
+    render->use();
+    setup_uniforms(*render);
+
+    return true;
+}
+
 int main(int argc, char **argv)
 {
     initGlut(&argc, argv);
@@ -246,30 +287,15 @@ int main(int argc, char **argv)
         return 1;
     initGl();
 
-    auto vsrc = utils::read_file_content("../shaders/reliefMapping.vs");
-    auto fsrc = utils::read_file_content("../shaders/reliefMapping.fs");
-    const std::map<GLuint, std::string> shader_map{
-        { GL_VERTEX_SHADER, vsrc }, { GL_FRAGMENT_SHADER, fsrc }
-    };
-
-    auto render = program::make_program(shader_map);
-    shaders["render"] = render;
-
-    if (!render->is_ready())
-    {
-        std::cerr << render->get_log();
+    if (!setup_shaders())
         return 1;
-    }
 
-    render->use();
-
-    if (!setup_vao(render->id()))
+    if (!setup_scene())
     {
         std::cerr << "VAO setup failed\n";
         return 1;
     }
 
     glutMainLoop();
-
     return 0;
 }
