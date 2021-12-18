@@ -48,11 +48,18 @@ void set_uniforms(program &program, const glm::vec3 &light_position)
     program.set_float("ambient_light", ambient_light);
 }
 
+void compute_frame()
+{
+    auto &program = programs["compute"];
+    for (auto &mesh : scene)
+        mesh->compute(*program);
+}
+
 void directional_shadow_frame(DirectionalShadowMap &shadow_map,
                               const glm::mat4 &world,
                               const glm::vec3 &view_position)
 {
-    auto &program = programs["render"];
+    auto &program = programs["render_quads"];
     program->use();
 
     glViewport(0, 0, 1024, 1024);
@@ -107,7 +114,7 @@ void cube_shadow_frame(CubeShadowMap &shadow_map,
 
 void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
 {
-    auto &program = programs["render"];
+    auto &program = programs["render_quads"];
     program->use();
     glViewport(0, 0, 1920, 1080);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -142,6 +149,7 @@ void display()
 
     glm::vec3 light_position{ 15, 15, 15 };
     set_uniforms(*programs["render"], light_position);
+    set_uniforms(*programs["render_quads"], light_position);
 
     glm::mat4 world = glm::mat4(1.0f);
     world =
@@ -149,6 +157,7 @@ void display()
     // world = glm::translate(world, glm::vec3(rotation, 0, 0));
 
     camera.on_render();
+    compute_frame();
     directional_shadow_frame(shadow_map, world, light_position);
     complete_frame(world, light_position);
     // glutPostRedisplay();
@@ -230,7 +239,7 @@ bool setup_scene()
     if (!shadow_map.init(1024, 1024))
         return false;
 
-    scene.emplace_back(new Mesh("../data/model/elephant_plane.obj"));
+    scene.emplace_back(new QuadMesh("../data/model/rock.obj"));
 
     for (auto &mesh : scene)
     {
@@ -242,28 +251,52 @@ bool setup_scene()
 
 bool setup_shaders()
 {
-    auto rvsrc = utils::read_file_content("../shaders/reliefMapping.vs");
-    auto rfsrc = utils::read_file_content("../shaders/reliefMapping.fs");
+    auto render_vs_src = utils::read_file_content("../shaders/normals.vs");
+    auto render_fs_src = utils::read_file_content("../shaders/normals.fs");
+
+    auto renderq_tes_src =
+        utils::read_file_content("../shaders/do_nothing.glsl");
+    auto renderq_fs_src =
+        utils::read_file_content("../shaders/normals_quads.fs");
 
     auto svsrc = utils::read_file_content("../shaders/cubeShadowMap.vs");
     auto sgsrc = utils::read_file_content("../shaders/cubeShadowMap.gs");
     auto sfsrc = utils::read_file_content("../shaders/cubeShadowMap.fs");
 
-    std::map<GLuint, std::string> shader_map{ { GL_VERTEX_SHADER, rvsrc },
-                                              { GL_FRAGMENT_SHADER, rfsrc } };
+    auto compute_src =
+        utils::read_file_content("../shaders/compute_gravity.glsl");
+
+    std::map<GLuint, std::string> shader_map{
+        { GL_VERTEX_SHADER, render_vs_src },
+        { GL_FRAGMENT_SHADER, render_fs_src }
+    };
 
     auto render = program::make_program(shader_map);
     programs["render"] = render;
 
+    shader_map[GL_TESS_EVALUATION_SHADER] = renderq_tes_src;
+    shader_map[GL_FRAGMENT_SHADER] = renderq_fs_src;
+    auto render_quads = program::make_program(shader_map);
+    programs["render_quads"] = render_quads;
+
+    shader_map.erase(GL_TESS_EVALUATION_SHADER);
     shader_map[GL_VERTEX_SHADER] = svsrc;
     shader_map[GL_GEOMETRY_SHADER] = sgsrc;
     shader_map[GL_FRAGMENT_SHADER] = sfsrc;
     auto cube_shadow = program::make_program(shader_map);
     programs["cube_shadow"] = cube_shadow;
 
+    auto compute = program::make_compute(compute_src);
+    programs["compute"] = compute;
+
     if (!render->is_ready())
     {
         std::cerr << render->get_log();
+        return false;
+    }
+    if (!render_quads->is_ready())
+    {
+        std::cerr << cube_shadow->get_log();
         return false;
     }
     if (!cube_shadow->is_ready())
@@ -271,7 +304,14 @@ bool setup_shaders()
         std::cerr << cube_shadow->get_log();
         return false;
     }
+    if (!compute->is_ready())
+    {
+        std::cerr << cube_shadow->get_log();
+        return false;
+    }
 
+    render_quads->use();
+    setup_uniforms(*render_quads);
     cube_shadow->use();
     setup_uniforms(*cube_shadow);
     render->use();

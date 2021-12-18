@@ -1,59 +1,28 @@
 #include "mesh.hh"
 #include <iostream>
+#include <set>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include "utils.hh"
 
 namespace mygl
 {
-    bool Mesh::load()
-    {
-        bool res = false;
-        auto importer = Assimp::Importer();
-        const auto scene = importer.ReadFile(
-            name_,
-            aiProcess_Triangulate | aiProcess_GenSmoothNormals
-                | aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices
-                | aiProcess_CalcTangentSpace);
-
-        if (scene)
-            res = scene_init(scene);
-        else
-            std::cerr << "Could not initialize scene from " << name_ << '\n';
-
-        return res;
-    }
-
     void Mesh::compute(const mygl::program &compute_program)
     {
         compute_program.use();
         for (const auto &mesh_entry : mesh_entries_)
         {
+            compute_program.set_uint("nb_vertices", mesh_entry.num_vertices);
             glBindVertexArray(mesh_entry.VAO);
-            glBindBuffer(GL_SHADER_STORAGE_BUFFER, mesh_entry.vertex_VBO);
+            glBindBuffer(GL_SHADER_STORAGE_BUFFER, mesh_entry.SSBO);
+            glDispatchCompute(65535, 1, 1);
+            glMemoryBarrier(GL_ALL_BARRIER_BITS);
         }
 
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         glBindVertexArray(0);
     }
 
-    void Mesh::render(const mygl::program &program)
-    {
-        program.use();
-        for (const auto &mesh_entry : mesh_entries_)
-        {
-            glBindVertexArray(mesh_entry.VAO);
-            texture_entries_[mesh_entry.material_index * 3]->bind(GL_TEXTURE0);
-            texture_entries_[mesh_entry.material_index * 3 + 1]->bind(
-                GL_TEXTURE1);
-            texture_entries_[mesh_entry.material_index * 3 + 2]->bind(
-                GL_TEXTURE2);
-
-            glDrawElements(GL_TRIANGLES, mesh_entry.num_indices,
-                           GL_UNSIGNED_INT, (void *)0);
-        }
-        glBindVertexArray(0);
-    }
     bool Mesh::scene_init(const aiScene *scene)
     {
         mesh_entries_.resize(scene->mNumMeshes);
@@ -66,46 +35,6 @@ namespace mygl
         }
 
         return mat_init(scene);
-    }
-    void Mesh::mesh_init(unsigned int idx, const aiMesh *mesh)
-    {
-        std::vector<glm::vec3> vertices;
-        std::vector<glm::vec3> normals;
-        std::vector<glm::vec3> tangents;
-        std::vector<glm::vec2> uvs;
-        std::vector<unsigned int> indices;
-        const aiVector3D zero(0.f, 0.f, 0.f);
-
-        vertices.reserve(mesh->mNumVertices);
-        normals.reserve(mesh->mNumVertices);
-        tangents.reserve(mesh->mNumVertices);
-        uvs.reserve(mesh->mNumVertices);
-        indices.reserve(mesh->mNumFaces * 3);
-
-        for (size_t i = 0; i < mesh->mNumVertices; ++i)
-        {
-            const auto pos = mesh->mVertices + i;
-            const auto normal = mesh->mNormals + i;
-            const auto tangent = mesh->mTangents + i;
-            const auto tex_coord =
-                mesh->HasTextureCoords(0) ? mesh->mTextureCoords[0] + i : &zero;
-
-            vertices.push_back(glm::vec3(pos->x, pos->y, pos->z));
-            normals.push_back(glm::vec3(normal->x, normal->y, normal->z));
-            tangents.push_back(glm::vec3(tangent->x, tangent->y, tangent->z));
-            uvs.push_back(glm::vec2(tex_coord->x, tex_coord->y));
-        }
-
-        for (size_t i = 0; i < mesh->mNumFaces; ++i)
-        {
-            const auto face = mesh->mFaces[i];
-            indices.push_back(face.mIndices[0]);
-            indices.push_back(face.mIndices[1]);
-            indices.push_back(face.mIndices[2]);
-        }
-
-        mesh_entries_[idx].material_index = mesh->mMaterialIndex;
-        mesh_entries_[idx].init(vertices, normals, tangents, uvs, indices);
     }
 
     bool Mesh::load_texture_entry(size_t idx, const aiMaterial *const material,
@@ -182,6 +111,8 @@ namespace mygl
                                const std::vector<unsigned int> &indices)
     {
         num_indices = indices.size();
+        num_vertices = vertices.size();
+
         glGenVertexArrays(1, &VAO);
         glBindVertexArray(VAO);
 
@@ -227,16 +158,224 @@ namespace mygl
 
         glGenBuffers(1, &SSBO);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, s * vertices.size(),
-                     &(vertices.front()), GL_STATIC_DRAW);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, SSBO);
+        // glBufferData(GL_SHADER_STORAGE_BUFFER, s * vertices.size(),
+        //              &(vertices.front()), GL_STATIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, vertex_VBO);
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, normal_VBO);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, s * normals.size(),
-                     &(normals.front()), GL_STATIC_DRAW);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, SSBO);
+        // glBufferData(GL_SHADER_STORAGE_BUFFER, s * normals.size(),
+        //              &(normals.front()), GL_STATIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, normal_VBO);
 
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         glBindVertexArray(0);
     }
+
+    void
+    Mesh::MeshEntry::init_neighbours(const std::vector<glm::vec3> &vertices,
+                                     const std::vector<unsigned int> &indices)
+    {
+        glBindVertexArray(VAO);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
+
+        std::vector<unsigned int> neighbour_indices;
+        neighbour_indices.reserve(4 * vertices.size());
+        std::vector<std::set<unsigned int>> neighbour_indices_;
+
+        neighbour_indices_.resize(vertices.size());
+        for (size_t i = 0; i < indices.size(); i += 4)
+        {
+            auto i0 = indices[i];
+            auto i1 = indices[i + 1];
+            auto i2 = indices[i + 2];
+            auto i3 = indices[i + 3];
+
+            neighbour_indices_[i0].emplace(i1);
+            neighbour_indices_[i0].emplace(i3);
+
+            neighbour_indices_[i1].emplace(i2);
+            neighbour_indices_[i1].emplace(i0);
+
+            neighbour_indices_[i2].emplace(i3);
+            neighbour_indices_[i2].emplace(i1);
+
+            neighbour_indices_[i3].emplace(i0);
+            neighbour_indices_[i3].emplace(i2);
+        }
+
+        for (size_t i = 0; i < neighbour_indices_.size(); ++i)
+        {
+            std::copy(neighbour_indices_[i].begin(),
+                      neighbour_indices_[i].end(),
+                      neighbour_indices.begin() + i * 4);
+        }
+
+        glBufferData(GL_SHADER_STORAGE_BUFFER,
+                     sizeof(unsigned int) * neighbour_indices.size(),
+                     &(neighbour_indices.front()), GL_STATIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, SSBO);
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+
+    bool TriangleMesh::load()
+    {
+        bool res = false;
+        auto importer = Assimp::Importer();
+        const auto scene = importer.ReadFile(
+            name_,
+            aiProcess_Triangulate | aiProcess_GenSmoothNormals
+                | aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices
+                | aiProcess_CalcTangentSpace);
+
+        if (scene)
+            res = scene_init(scene);
+        else
+            std::cerr << "Could not initialize scene from " << name_ << '\n';
+
+        return res;
+    }
+
+    void TriangleMesh::render(const mygl::program &program)
+    {
+        program.use();
+        for (const auto &mesh_entry : mesh_entries_)
+        {
+            glBindVertexArray(mesh_entry.VAO);
+            texture_entries_[mesh_entry.material_index * 3]->bind(GL_TEXTURE0);
+            texture_entries_[mesh_entry.material_index * 3 + 1]->bind(
+                GL_TEXTURE1);
+            texture_entries_[mesh_entry.material_index * 3 + 2]->bind(
+                GL_TEXTURE2);
+
+            glDrawElements(GL_TRIANGLES, mesh_entry.num_indices,
+                           GL_UNSIGNED_INT, (void *)0);
+        }
+        glBindVertexArray(0);
+    }
+
+    void TriangleMesh::mesh_init(unsigned int idx, const aiMesh *mesh)
+    {
+        std::vector<glm::vec3> vertices;
+        std::vector<glm::vec3> normals;
+        std::vector<glm::vec3> tangents;
+        std::vector<glm::vec2> uvs;
+        std::vector<unsigned int> indices;
+        const aiVector3D zero(0.f, 0.f, 0.f);
+
+        vertices.reserve(mesh->mNumVertices);
+        normals.reserve(mesh->mNumVertices);
+        tangents.reserve(mesh->mNumVertices);
+        uvs.reserve(mesh->mNumVertices);
+        indices.reserve(mesh->mNumFaces * 3);
+
+        for (size_t i = 0; i < mesh->mNumVertices; ++i)
+        {
+            const auto pos = mesh->mVertices + i;
+            const auto normal = mesh->mNormals + i;
+            const auto tangent = mesh->mTangents + i;
+            const auto tex_coord =
+                mesh->HasTextureCoords(0) ? mesh->mTextureCoords[0] + i : &zero;
+
+            vertices.push_back(glm::vec3(pos->x, pos->y, pos->z));
+            normals.push_back(glm::vec3(normal->x, normal->y, normal->z));
+            tangents.push_back(glm::vec3(tangent->x, tangent->y, tangent->z));
+            uvs.push_back(glm::vec2(tex_coord->x, tex_coord->y));
+        }
+
+        for (size_t i = 0; i < mesh->mNumFaces; ++i)
+        {
+            const auto face = mesh->mFaces[i];
+            indices.push_back(face.mIndices[0]);
+            indices.push_back(face.mIndices[1]);
+            indices.push_back(face.mIndices[2]);
+        }
+
+        mesh_entries_[idx].material_index = mesh->mMaterialIndex;
+        mesh_entries_[idx].init(vertices, normals, tangents, uvs, indices);
+    }
+
+    bool QuadMesh::load()
+    {
+        bool res = false;
+        auto importer = Assimp::Importer();
+        const auto scene = importer.ReadFile(
+            name_,
+            aiProcess_GenSmoothNormals | aiProcess_FlipUVs
+                | aiProcess_JoinIdenticalVertices | aiProcess_CalcTangentSpace);
+
+        if (scene)
+            res = scene_init(scene);
+        else
+            std::cerr << "Could not initialize scene from " << name_ << '\n';
+
+        return res;
+    }
+
+    void QuadMesh::render(const mygl::program &program)
+    {
+        program.use();
+        for (const auto &mesh_entry : mesh_entries_)
+        {
+            glBindVertexArray(mesh_entry.VAO);
+            texture_entries_[mesh_entry.material_index * 3]->bind(GL_TEXTURE0);
+            texture_entries_[mesh_entry.material_index * 3 + 1]->bind(
+                GL_TEXTURE1);
+            texture_entries_[mesh_entry.material_index * 3 + 2]->bind(
+                GL_TEXTURE2);
+
+            glPatchParameteri(GL_PATCH_VERTICES, 4);
+            glDrawElements(GL_PATCHES, mesh_entry.num_indices, GL_UNSIGNED_INT,
+                           (void *)0);
+        }
+        glBindVertexArray(0);
+    }
+
+    void QuadMesh::mesh_init(unsigned int idx, const aiMesh *mesh)
+    {
+        std::vector<glm::vec3> vertices;
+        std::vector<glm::vec3> normals;
+        std::vector<glm::vec3> tangents;
+        std::vector<glm::vec2> uvs;
+        std::vector<unsigned int> indices;
+        const aiVector3D zero(0.f, 0.f, 0.f);
+
+        vertices.reserve(mesh->mNumVertices);
+        normals.reserve(mesh->mNumVertices);
+        tangents.reserve(mesh->mNumVertices);
+        uvs.reserve(mesh->mNumVertices);
+        indices.reserve(mesh->mNumFaces * 4);
+
+        for (size_t i = 0; i < mesh->mNumVertices; ++i)
+        {
+            const auto pos = mesh->mVertices + i;
+            const auto normal = mesh->mNormals + i;
+            const auto tangent = mesh->mTangents + i;
+            const auto tex_coord =
+                mesh->HasTextureCoords(0) ? mesh->mTextureCoords[0] + i : &zero;
+
+            vertices.push_back(glm::vec3(pos->x, pos->y, pos->z));
+            normals.push_back(glm::vec3(normal->x, normal->y, normal->z));
+            tangents.push_back(glm::vec3(tangent->x, tangent->y, tangent->z));
+            uvs.push_back(glm::vec2(tex_coord->x, tex_coord->y));
+        }
+
+        for (size_t i = 0; i < mesh->mNumFaces; ++i)
+        {
+            const auto face = mesh->mFaces[i];
+            if (face.mNumIndices != 4)
+                std::cerr << "Quad mesh has wrong number of face indices: "
+                          << face.mNumIndices;
+
+            indices.push_back(face.mIndices[0]);
+            indices.push_back(face.mIndices[1]);
+            indices.push_back(face.mIndices[2]);
+            indices.push_back(face.mIndices[3]);
+        }
+
+        mesh_entries_[idx].material_index = mesh->mMaterialIndex;
+        mesh_entries_[idx].init(vertices, normals, tangents, uvs, indices);
+        mesh_entries_[idx].init_neighbours(vertices, indices);
+    }
+
 } // namespace mygl

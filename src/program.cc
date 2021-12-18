@@ -58,6 +58,18 @@ namespace mygl
     }
 
     std::shared_ptr<program>
+    program::make_compute(std::string &compute_shader_src)
+    {
+        // Initialize program and vars
+        auto p = std::make_shared<program>();
+        if (!p->add_shader(compute_shader_src, GL_COMPUTE_SHADER))
+            return p;
+
+        p->ready_ = p->link();
+        return p;
+    }
+
+    std::shared_ptr<program>
     program::make_program(const std::map<GLuint, std::string> &shader_sources)
     {
         // Initialize program and vars
@@ -98,6 +110,11 @@ namespace mygl
     void program::set_int(const std::string &name, int value) const
     {
         glUniform1i(glGetUniformLocation(id_, name.c_str()), value);
+    }
+
+    void program::set_uint(const std::string &name, unsigned int value) const
+    {
+        glUniform1ui(glGetUniformLocation(id_, name.c_str()), value);
     }
 
     void program::set_float(const std::string &name, float value) const

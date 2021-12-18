@@ -20,6 +20,8 @@ namespace mygl
         bool link();
 
         static std::shared_ptr<program>
+        make_compute(std::string &compute_shader_src);
+        static std::shared_ptr<program>
         make_program(const std::map<GLuint, std::string> &shader_sources);
 
         const char *get_log() const;
@@ -27,6 +29,7 @@ namespace mygl
         bool is_ready() const;
         void use() const;
 
+        void set_uint(const std::string &name, unsigned int value) const;
         void set_int(const std::string &name, int value) const;
         void set_float(const std::string &name, float value) const;
         void set_vec3(const std::string &name, const glm::vec3 &value) const;
