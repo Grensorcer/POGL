@@ -177,11 +177,14 @@ namespace mygl
         glBindVertexArray(VAO);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
 
-        std::vector<unsigned int> neighbour_indices;
-        neighbour_indices.reserve(4 * vertices.size());
-        std::vector<std::set<unsigned int>> neighbour_indices_;
+        std::vector<int> neighbour_indices(4 * vertices.size(), -1);
+        std::vector<std::set<int>> neighbour_indices_;
 
         neighbour_indices_.resize(vertices.size());
+        if (indices.back() == indices.size() - 1)
+            std::cout
+                << "WARNING: Seems like this quad mesh has no repeated index\n";
+        std::cout << "TOTAL SIZE: " << indices.size() << '\n';
         for (size_t i = 0; i < indices.size(); i += 4)
         {
             auto i0 = indices[i];
@@ -207,6 +210,10 @@ namespace mygl
             std::copy(neighbour_indices_[i].begin(),
                       neighbour_indices_[i].end(),
                       neighbour_indices.begin() + i * 4);
+            std::cout << i << ": " << neighbour_indices[i * 4] << ' '
+                      << neighbour_indices[i * 4 + 1] << ' '
+                      << neighbour_indices[i * 4 + 2] << ' '
+                      << neighbour_indices[i * 4 + 3] << '\n';
         }
 
         glBufferData(GL_SHADER_STORAGE_BUFFER,
@@ -365,12 +372,14 @@ namespace mygl
             const auto face = mesh->mFaces[i];
             if (face.mNumIndices != 4)
                 std::cerr << "Quad mesh has wrong number of face indices: "
-                          << face.mNumIndices;
+                          << face.mNumIndices << '\n';
 
             indices.push_back(face.mIndices[0]);
             indices.push_back(face.mIndices[1]);
             indices.push_back(face.mIndices[2]);
             indices.push_back(face.mIndices[3]);
+            // std::cout << face.mIndices[0] << " " << face.mIndices[1] << " "
+            //          << face.mIndices[2] << " " << face.mIndices[3] << "\n";
         }
 
         mesh_entries_[idx].material_index = mesh->mMaterialIndex;

@@ -239,7 +239,7 @@ bool setup_scene()
     if (!shadow_map.init(1024, 1024))
         return false;
 
-    scene.emplace_back(new QuadMesh("../data/model/rock.obj"));
+    scene.emplace_back(new QuadMesh("../data/model/cloth.obj"));
 
     for (auto &mesh : scene)
     {
