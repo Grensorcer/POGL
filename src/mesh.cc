@@ -183,7 +183,7 @@ namespace mygl
         if (indices.back() == indices.size() - 1)
             std::cout
                 << "WARNING: Seems like this quad mesh has no repeated index\n";
-        std::cout << "TOTAL SIZE: " << indices.size() << '\n';
+        // std::cout << "TOTAL SIZE: " << indices.size() << '\n';
         for (size_t i = 0; i < indices.size(); i += 4)
         {
             auto i0 = indices[i];
