@@ -23,7 +23,8 @@ using namespace mygl;
 std::vector<std::unique_ptr<Mesh>> scene;
 std::map<std::string, std::shared_ptr<program>> programs;
 
-DirectionalShadowMap shadow_map;
+// DirectionalShadowMap shadow_map;
+CubeShadowMap shadow_map;
 
 Camera camera{ 1920, 1080, glm::vec3(3, 4, 8), glm::vec3(0, 0, -1),
                glm::vec3(0, 1, 0) };
@@ -59,7 +60,7 @@ void directional_shadow_frame(DirectionalShadowMap &shadow_map,
                               const glm::mat4 &world,
                               const glm::vec3 &view_position)
 {
-    auto &program = programs["render_quads"];
+    auto &program = programs["render"];
     program->use();
 
     glViewport(0, 0, 1024, 1024);
@@ -97,7 +98,7 @@ void cube_shadow_frame(CubeShadowMap &shadow_map,
     // 1000.f);
 
     shadow_map.set_view(view_position);
-    program->set_float("far_plane", 25.f);
+    program->set_float("far_plane", 100.f);
     program->set_vec3("view_position", view_position);
     for (short i = 0; i < 6; ++i)
     {
@@ -114,7 +115,7 @@ void cube_shadow_frame(CubeShadowMap &shadow_map,
 
 void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
 {
-    auto &program = programs["render_quads"];
+    auto &program = programs["render"];
     program->use();
     glViewport(0, 0, 1920, 1080);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -134,6 +135,7 @@ void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
     program->set_mat4("wvp", wvp);
     program->set_mat4("light_wvp", lwvp);
     program->set_vec3("view_position", camera.position());
+    program->set_float("far_plane", 100.f);
 
     for (auto &mesh : scene)
         mesh->render(*program);
@@ -147,7 +149,7 @@ void display()
     if (rotation >= 1)
         rotation = 0;
 
-    glm::vec3 light_position{ 15, 15, 15 };
+    glm::vec3 light_position{ 0, 5, 2 };
     set_uniforms(*programs["render"], light_position);
     set_uniforms(*programs["render_quads"], light_position);
 
@@ -157,8 +159,9 @@ void display()
     // world = glm::translate(world, glm::vec3(rotation, 0, 0));
 
     camera.on_render();
-    compute_frame();
-    directional_shadow_frame(shadow_map, world, light_position);
+    // compute_frame();
+    // directional_shadow_frame(shadow_map, world, light_position);
+    cube_shadow_frame(shadow_map, light_position);
     complete_frame(world, light_position);
     // glutPostRedisplay();
     glutSwapBuffers();
@@ -239,7 +242,7 @@ bool setup_scene()
     if (!shadow_map.init(1024, 1024))
         return false;
 
-    scene.emplace_back(new QuadMesh("../data/model/cloth.obj"));
+    scene.emplace_back(new TriangleMesh("../data/model/elephant_plane.obj"));
 
     for (auto &mesh : scene)
     {
@@ -251,8 +254,10 @@ bool setup_scene()
 
 bool setup_shaders()
 {
-    auto render_vs_src = utils::read_file_content("../shaders/normals.vs");
-    auto render_fs_src = utils::read_file_content("../shaders/normals.fs");
+    auto render_vs_src =
+        utils::read_file_content("../shaders/normals_cubeshadows.vs");
+    auto render_fs_src =
+        utils::read_file_content("../shaders/normals_cubeshadows.fs");
 
     auto renderq_tes_src =
         utils::read_file_content("../shaders/do_nothing.glsl");
@@ -294,11 +299,11 @@ bool setup_shaders()
         std::cerr << render->get_log();
         return false;
     }
-    if (!render_quads->is_ready())
-    {
-        std::cerr << cube_shadow->get_log();
-        return false;
-    }
+    // if (!render_quads->is_ready())
+    // {
+    //     std::cerr << cube_shadow->get_log();
+    //     return false;
+    // }
     if (!cube_shadow->is_ready())
     {
         std::cerr << cube_shadow->get_log();
@@ -330,6 +335,7 @@ int main(int argc, char **argv)
     if (!setup_shaders())
         return 1;
 
+    std::cout << "Ran\n";
     if (!setup_scene())
     {
         std::cerr << "VAO setup failed\n";

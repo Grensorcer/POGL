@@ -72,7 +72,7 @@ void main()
         vec3 vertex=V2v(Vertex);
         
         vertex=vertex+MASS*vec3(0,-9.81,0);
-        // vertices[idx]=v2V(vertex);
+        vertices[idx]=v2V(vertex);
         // vertices[idx]=v2V(vertex+SCALE*vec3(0,10,0)/count_neighbours);
         // vertices[idx]=v2V((my_neighbours[0]+my_neighbours[1]+my_neighbours[2]+my_neighbours[3])/count_neighbours);
     }
