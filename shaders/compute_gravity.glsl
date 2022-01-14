@@ -77,19 +77,19 @@ vec3 spring_force(vec3 u,vec3 v,float L0)
 
 void main()
 {
-    float L0=.25;
+    float L0=.2845;
     float K=1;
     float mu=.2;
     float h=.003;
     
-    vec3 my_neighbours[4];
+    vec3 my_neighbours[8];
     uint count_neighbours=0;
     uint idx=gl_GlobalInvocationID.x;
-    uint stride=idx*4;
+    uint stride=idx*8;
     
     Vec3 Vertex=vertices[idx];
     ComputeInfo info=infos[idx];
-    for(uint i=0;i<4;++i)
+    for(uint i=0;i<8;++i)
     {
         my_neighbours[i]=get_neighbour(stride+i,count_neighbours);
     }
@@ -107,7 +107,7 @@ void main()
         }
         force*=K;
         force+=MASS*vec3(0,-9.81,0);
-        // force-=mu*info.speed;
+        force-=mu*info.speed;
         
         infos[idx].speed+=h*force/MASS;
         vertex+=h*infos[idx].speed;

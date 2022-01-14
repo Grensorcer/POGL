@@ -176,7 +176,7 @@ namespace mygl
         glBindVertexArray(VAO);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
 
-        std::vector<int> neighbour_indices(4 * vertices.size(), -1);
+        std::vector<int> neighbour_indices(8 * vertices.size(), -1);
         std::vector<std::set<int>> neighbour_indices_;
 
         neighbour_indices_.resize(vertices.size());
@@ -192,15 +192,19 @@ namespace mygl
             auto i3 = indices[i + 3];
 
             neighbour_indices_[i0].emplace(i1);
+            neighbour_indices_[i0].emplace(i2);
             neighbour_indices_[i0].emplace(i3);
 
             neighbour_indices_[i1].emplace(i2);
+            neighbour_indices_[i1].emplace(i3);
             neighbour_indices_[i1].emplace(i0);
 
             neighbour_indices_[i2].emplace(i3);
+            neighbour_indices_[i2].emplace(i0);
             neighbour_indices_[i2].emplace(i1);
 
             neighbour_indices_[i3].emplace(i0);
+            neighbour_indices_[i3].emplace(i1);
             neighbour_indices_[i3].emplace(i2);
         }
 
@@ -208,11 +212,11 @@ namespace mygl
         {
             std::copy(neighbour_indices_[i].begin(),
                       neighbour_indices_[i].end(),
-                      neighbour_indices.begin() + i * 4);
-            std::cout << i << ": " << neighbour_indices[i * 4] << ' '
-                      << neighbour_indices[i * 4 + 1] << ' '
-                      << neighbour_indices[i * 4 + 2] << ' '
-                      << neighbour_indices[i * 4 + 3] << '\n';
+                      neighbour_indices.begin() + i * 8);
+            std::cout << i << ": " << neighbour_indices[i * 8] << ' '
+                      << neighbour_indices[i * 8 + 1] << ' '
+                      << neighbour_indices[i * 8 + 2] << ' '
+                      << neighbour_indices[i * 8 + 3] << '\n';
         }
 
         glBufferData(GL_SHADER_STORAGE_BUFFER,
