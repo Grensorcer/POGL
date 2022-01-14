@@ -65,7 +65,12 @@ vec3 get_neighbour(uint idx,inout uint count_neighbours)
 vec3 spring_force(vec3 u,vec3 v,float L0)
 {
     vec3 diff=v-u;
-    float d=length(diff);
+    float d = sqrt(diff.x * diff.x + diff.y * diff.y + diff.z * diff.z);
+    if (d > 2*L0)
+        d = 2*L0;
+    if (d < L0/2)
+        d = L0/2;
+    //float d=length(diff);
     
     return(d-L0)*diff/d;
 }
@@ -75,7 +80,7 @@ void main()
     float L0=.25;
     float K=1;
     float mu=.2;
-    float h=.0000001;
+    float h=.003;
     
     vec3 my_neighbours[4];
     uint count_neighbours=0;

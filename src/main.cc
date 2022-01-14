@@ -25,7 +25,9 @@ std::map<std::string, std::shared_ptr<program>> programs;
 
 DirectionalShadowMap shadow_map;
 
-Camera camera{ 1920, 1080, glm::vec3(3, 4, 8), glm::vec3(0, 0, -1),
+int camsize_x = 1820, camsize_y = 980;
+
+Camera camera{ camsize_x, camsize_y, glm::vec3(3, 4, 8), glm::vec3(0, 0, -1),
                glm::vec3(0, 1, 0) };
 
 void mouse_function(int x, int y)
@@ -89,7 +91,7 @@ void cube_shadow_frame(CubeShadowMap &shadow_map,
 {
     auto &program = programs["cube_shadow"];
     program->use();
-    glViewport(0, 0, 1920, 1080);
+    glViewport(0, 0, camsize_x, camsize_y);
     shadow_map.write();
     glClear(GL_DEPTH_BUFFER_BIT);
 
@@ -116,12 +118,12 @@ void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
 {
     auto &program = programs["render_quads"];
     program->use();
-    glViewport(0, 0, 1920, 1080);
+    glViewport(0, 0, camsize_x, camsize_y);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shadow_map.read(GL_TEXTURE3);
 
     glm::mat4 projection =
-        glm::perspective(glm::radians(45.f), 1920.f / 1080.f, 0.1f, 1000.f);
+        glm::perspective(glm::radians(45.f), float(camsize_x) / float(camsize_y), 0.1f, 1000.f);
 
     glm::mat4 view = glm::lookAt(
         camera.position(), camera.position() + camera.target(), camera.up());
@@ -170,7 +172,7 @@ bool initGlut(int *argc, char **argv)
     glutInitContextVersion(4, 5);
     glutInitContextProfile(GLUT_CORE_PROFILE);
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
-    glutInitWindowSize(1920, 1080);
+    glutInitWindowSize(camsize_x, camsize_y);
     glutInitWindowPosition(10, 10);
     glutCreateWindow("My first render");
     glutDisplayFunc(display);
@@ -178,7 +180,7 @@ bool initGlut(int *argc, char **argv)
     glutPassiveMotionFunc(mouse_function);
     glutSpecialFunc(camera_keypress_function);
     glutWarpPointer(camera.mouse_x(), camera.mouse_y());
-    // glutGameModeString("1920x1080@32");
+    // glutGameModeString("camsize_xxcamsize_y@32");
     // glutEnterGameMode();
     return true;
 }
@@ -322,20 +324,26 @@ bool setup_shaders()
 
 int main(int argc, char **argv)
 {
+    std::cout << 1 << std::endl;
     initGlut(&argc, argv);
+    std::cout << 2 << std::endl;
     if (!initGlew())
         return 1;
     initGl();
+    std::cout << 3 << std::endl;
 
     if (!setup_shaders())
         return 1;
+    std::cout << 4 << std::endl;
 
     if (!setup_scene())
     {
         std::cerr << "VAO setup failed\n";
         return 1;
     }
+    std::cout << 5 << std::endl;
 
     glutMainLoop();
+    std::cout << 6 << std::endl;
     return 0;
 }
