@@ -1,6 +1,5 @@
 #include "mesh.hh"
 #include <iostream>
-#include <set>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include "utils.hh"
@@ -170,7 +169,7 @@ namespace mygl
         glBindVertexArray(0);
     }
 
-    void
+    std::vector<std::set<int>>
     Mesh::MeshEntry::init_neighbours(const std::vector<glm::vec3> &vertices,
                                      const std::vector<unsigned int> &indices)
     {
@@ -220,6 +219,31 @@ namespace mygl
                      sizeof(unsigned int) * neighbour_indices.size(),
                      &(neighbour_indices.front()), GL_STATIC_DRAW);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, SSBO);
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+        glBindVertexArray(0);
+
+        return neighbour_indices_;
+    }
+
+    void Mesh::MeshEntry::init_compute(
+        const std::vector<std::set<int>> &neighbour_sets)
+    {
+        glBindVertexArray(VAO);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
+
+        auto info = std::vector<Compute_Info>(neighbour_sets.size());
+        for (size_t i = 0; i < neighbour_sets.size(); ++i)
+        {
+            info[i].speed = glm::vec3(0.);
+            info[i].pinned = false;
+            if (neighbour_sets[i].size() == 2)
+                info[i].pinned = true;
+        }
+        glBufferData(GL_SHADER_STORAGE_BUFFER,
+                     sizeof(Compute_Info) * info.size(), &(info.front()),
+                     GL_STATIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, SSBO);
 
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         glBindVertexArray(0);
@@ -384,7 +408,9 @@ namespace mygl
 
         mesh_entries_[idx].material_index = mesh->mMaterialIndex;
         mesh_entries_[idx].init(vertices, normals, tangents, uvs, indices);
-        mesh_entries_[idx].init_neighbours(vertices, indices);
+        auto neighbour_sets =
+            mesh_entries_[idx].init_neighbours(vertices, indices);
+        mesh_entries_[idx].init_compute(neighbour_sets);
     }
 
 } // namespace mygl

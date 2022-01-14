@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <set>
 #include <GL/glew.h>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -33,6 +34,12 @@ namespace mygl
 
         struct MeshEntry
         {
+            struct Compute_Info
+            {
+                glm::vec3 speed = glm::vec3(0.);
+                float pinned = false;
+            };
+
             MeshEntry()
             {
                 glGenVertexArrays(1, &VAO);
@@ -48,8 +55,10 @@ namespace mygl
                       const std::vector<glm::vec2> &uvs,
                       const std::vector<unsigned int> &indices);
 
-            void init_neighbours(const std::vector<glm::vec3> &vertices,
-                                 const std::vector<unsigned int> &indices);
+            std::vector<std::set<int>>
+            init_neighbours(const std::vector<glm::vec3> &vertices,
+                            const std::vector<unsigned int> &indices);
+            void init_compute(const std::vector<std::set<int>> &vertices);
 
             GLuint VAO;
             GLuint vertex_VBO;
