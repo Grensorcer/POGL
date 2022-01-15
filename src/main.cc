@@ -43,7 +43,7 @@ void set_uniforms(program &program, const glm::vec3 &light_position)
 {
     program.use();
     glm::vec3 light_color{ 1, 1, 1 };
-    static float ambient_light = 0.1f;
+    static float ambient_light = 1.0f;
 
     program.set_vec3("light_position", light_position);
     program.set_vec3("light_color", light_color);
@@ -241,7 +241,7 @@ bool setup_scene()
     if (!shadow_map.init(1024, 1024))
         return false;
 
-    scene.emplace_back(new QuadMesh("../data/model/cloth.obj"));
+    scene.emplace_back(new QuadMesh("../data/model/cloth_more.obj"));
 
     for (auto &mesh : scene)
     {

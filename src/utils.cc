@@ -3,6 +3,11 @@
 #include <iostream>
 #include <exception>
 
+std::ostream &operator<<(std::ostream &out, const glm::vec3 &v)
+{
+    return out << '(' << v.x << ", " << v.y << ", " << v.z << ")\n";
+}
+
 namespace utils
 {
     std::string read_file_content(const char *filename)

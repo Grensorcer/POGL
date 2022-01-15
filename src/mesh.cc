@@ -13,7 +13,14 @@ namespace mygl
         {
             compute_program.set_uint("nb_vertices", mesh_entry.num_vertices);
             glBindVertexArray(mesh_entry.VAO);
-            glBindBuffer(GL_SHADER_STORAGE_BUFFER, mesh_entry.SSBO);
+            // glBindBuffer(GL_SHADER_STORAGE_BUFFER, mesh_entry.SSBO);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1,
+                             mesh_entry.vertex_VBO);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2,
+                             mesh_entry.normal_VBO);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3,
+                             mesh_entry.neighbour_SSBO);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, mesh_entry.info_SSBO);
             glDispatchCompute(65535, 1, 1);
             glMemoryBarrier(GL_ALL_BARRIER_BITS);
         }
@@ -124,14 +131,14 @@ namespace mygl
         glGenBuffers(1, &vertex_VBO);
         glBindBuffer(GL_ARRAY_BUFFER, vertex_VBO);
         glBufferData(GL_ARRAY_BUFFER, s * vertices.size(), &(vertices.front()),
-                     GL_STATIC_DRAW);
+                     GL_DYNAMIC_DRAW);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
 
         glGenBuffers(1, &normal_VBO);
         glBindBuffer(GL_ARRAY_BUFFER, normal_VBO);
         glBufferData(GL_ARRAY_BUFFER, s * normals.size(), &(normals.front()),
-                     GL_STATIC_DRAW);
+                     GL_DYNAMIC_DRAW);
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
 
@@ -155,15 +162,14 @@ namespace mygl
                      sizeof(unsigned int) * indices.size(), &(indices.front()),
                      GL_STATIC_DRAW);
 
-        glGenBuffers(1, &SSBO);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
+        // glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
         // glBufferData(GL_SHADER_STORAGE_BUFFER, s * vertices.size(),
         //              &(vertices.front()), GL_STATIC_DRAW);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, vertex_VBO);
+        // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, vertex_VBO);
 
         // glBufferData(GL_SHADER_STORAGE_BUFFER, s * normals.size(),
         //              &(normals.front()), GL_STATIC_DRAW);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, normal_VBO);
+        // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, normal_VBO);
 
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         glBindVertexArray(0);
@@ -174,7 +180,8 @@ namespace mygl
                                      const std::vector<unsigned int> &indices)
     {
         glBindVertexArray(VAO);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
+        glGenBuffers(1, &neighbour_SSBO);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, neighbour_SSBO);
 
         std::vector<int> neighbour_indices(8 * vertices.size(), -1);
         std::vector<std::set<int>> neighbour_indices_;
@@ -220,9 +227,8 @@ namespace mygl
         }
 
         glBufferData(GL_SHADER_STORAGE_BUFFER,
-                     sizeof(unsigned int) * neighbour_indices.size(),
-                     &(neighbour_indices.front()), GL_STATIC_DRAW);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, SSBO);
+                     sizeof(int) * neighbour_indices.size(),
+                     neighbour_indices.data(), GL_STATIC_DRAW);
 
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         glBindVertexArray(0);
@@ -234,20 +240,21 @@ namespace mygl
         const std::vector<std::set<int>> &neighbour_sets)
     {
         glBindVertexArray(VAO);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
+        glGenBuffers(1, &info_SSBO);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, info_SSBO);
 
         auto info = std::vector<Compute_Info>(neighbour_sets.size());
         for (size_t i = 0; i < neighbour_sets.size(); ++i)
         {
-            info[i].speed = glm::vec3(0.);
+            info[i].speed = glm::vec3(1.);
             info[i].pinned = false;
             if (neighbour_sets[i].size() == 2)
                 info[i].pinned = true;
         }
         glBufferData(GL_SHADER_STORAGE_BUFFER,
                      sizeof(Compute_Info) * info.size(), &(info.front()),
-                     GL_STATIC_DRAW);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, SSBO);
+                     GL_DYNAMIC_DRAW);
+        // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, SSBO);
 
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         glBindVertexArray(0);

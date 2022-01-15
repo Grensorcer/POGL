@@ -1,5 +1,5 @@
 #version 450
-#define MASS.1
+#define MASS.0046
 
 struct Vec3{
     float x,y,z;
@@ -7,7 +7,7 @@ struct Vec3{
 
 struct ComputeInfo{
     vec3 speed;
-    float aligned;
+    float pinned;
 };
 
 layout(std430,binding=1)buffer vertex_buffer
@@ -65,22 +65,16 @@ vec3 get_neighbour(uint idx,inout uint count_neighbours)
 vec3 spring_force(vec3 u,vec3 v,float L0)
 {
     vec3 diff=v-u;
-    float d = sqrt(diff.x * diff.x + diff.y * diff.y + diff.z * diff.z);
-    if (d > 2*L0)
-        d = 2*L0;
-    if (d < L0/2)
-        d = L0/2;
-    //float d=length(diff);
-    
+    float d=length(diff);
     return(d-L0)*diff/d;
 }
 
 void main()
 {
-    float L0=.2845;
-    float K=1;
+    float L0=.06;
+    float K=300;
     float mu=.2;
-    float h=.003;
+    float h=.001;
     
     vec3 my_neighbours[8];
     uint count_neighbours=0;
@@ -96,7 +90,8 @@ void main()
     
     memoryBarrier();
     barrier();
-    if((idx<vertices.length())&&(infos[idx].aligned==0))
+    
+    if((idx<nb_vertices)&&(info.pinned==0))
     {
         vec3 vertex=V2v(Vertex);
         
@@ -111,6 +106,7 @@ void main()
         
         infos[idx].speed+=h*force/MASS;
         vertex+=h*infos[idx].speed;
+        //vertex+=h*force;
         vertices[idx]=v2V(vertex);
         // vertices[idx]=v2V(vertex+SCALE*vec3(0,10,0)/count_neighbours);
         // vertices[idx]=v2V((my_neighbours[0]+my_neighbours[1]+my_neighbours[2]+my_neighbours[3])/count_neighbours);

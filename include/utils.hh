@@ -3,6 +3,7 @@
 #include <GL/glew.h>
 #include <glm/vec3.hpp>
 
+std::ostream &operator<<(std::ostream &out, const glm::vec3 &v);
 namespace utils
 {
     std::string read_file_content(const char *filename);
