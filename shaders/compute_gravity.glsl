@@ -20,12 +20,17 @@ layout(std430,binding=2)buffer normal_buffer
     Vec3 normals[];
 };
 
-layout(std430,binding=3)buffer neighbours_buffer
+layout(std430,binding=3)readonly buffer neighbours_buffer
 {
     int neighbours[];
 };
 
-layout(std430,binding=4)buffer info_buffer
+layout(std430,binding=4)readonly buffer distance_buffer
+{
+    float distances[];
+};
+
+layout(std430,binding=5)buffer info_buffer
 {
     ComputeInfo infos[];
 };
@@ -71,12 +76,13 @@ vec3 spring_force(vec3 u,vec3 v,float L0)
 
 void main()
 {
-    float L0=.06;
-    float K=300;
+    float K=200;
     float mu=.2;
-    float h=.001;
+    float h=.003;
     
     vec3 my_neighbours[8];
+    float my_distances[8];
+    
     uint count_neighbours=0;
     uint idx=gl_GlobalInvocationID.x;
     uint stride=idx*8;
@@ -86,6 +92,7 @@ void main()
     for(uint i=0;i<8;++i)
     {
         my_neighbours[i]=get_neighbour(stride+i,count_neighbours);
+        my_distances[i]=distances[stride+i];
     }
     
     memoryBarrier();
@@ -98,7 +105,7 @@ void main()
         vec3 force=vec3(0);
         for(uint i=0;i<count_neighbours;++i)
         {
-            force+=spring_force(vertex,my_neighbours[i],L0);
+            force+=spring_force(vertex,my_neighbours[i],my_distances[i]);
         }
         force*=K;
         force+=MASS*vec3(0,-9.81,0);

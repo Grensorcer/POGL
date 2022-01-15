@@ -122,8 +122,8 @@ void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shadow_map.read(GL_TEXTURE3);
 
-    glm::mat4 projection =
-        glm::perspective(glm::radians(45.f), float(camsize_x) / float(camsize_y), 0.1f, 1000.f);
+    glm::mat4 projection = glm::perspective(
+        glm::radians(45.f), float(camsize_x) / float(camsize_y), 0.1f, 1000.f);
 
     glm::mat4 view = glm::lookAt(
         camera.position(), camera.position() + camera.target(), camera.up());
