@@ -69,10 +69,6 @@ vec3 get_neighbour(uint idx,inout uint count_neighbours)
 
 vec3 spring_force(vec3 u,vec3 v,float L0)
 {
-    if((L0<.04||L0>.1)&&(L0==0))
-    {
-        return vec3(12321300);
-    }
     vec3 diff=v-u;
     float d=length(diff);
     return(d-L0)*diff/d;
@@ -82,7 +78,7 @@ void main()
 {
     float K=30;
     float mu=.2;
-    float h=.0001;
+    float h=.003;
     
     vec3 my_neighbours[8];
     float my_distances[8];
@@ -96,7 +92,7 @@ void main()
     for(uint i=0;i<8;++i)
     {
         my_neighbours[i]=get_neighbour(stride+i,count_neighbours);
-        my_distances[i]=distances[neighbours[stride+i]];
+        my_distances[i]=distances[stride+i];
     }
     
     memoryBarrier();
@@ -112,8 +108,8 @@ void main()
             force+=spring_force(vertex,my_neighbours[i],my_distances[i]);
         }
         force*=K;
-        // force+=MASS*vec3(0,-9.81,0);
-        // force-=mu*info.speed;
+        force+=MASS*vec3(0,-9.81,0);
+        force-=mu*info.speed;
         
         infos[idx].speed+=h*force/MASS;
         vertex+=h*infos[idx].speed;

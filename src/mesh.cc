@@ -13,7 +13,6 @@ namespace mygl
         {
             compute_program.set_uint("nb_vertices", mesh_entry.num_vertices);
             glBindVertexArray(mesh_entry.VAO);
-            // glBindBuffer(GL_SHADER_STORAGE_BUFFER, mesh_entry.SSBO);
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1,
                              mesh_entry.vertex_VBO);
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2,
@@ -183,7 +182,7 @@ namespace mygl
     {
         glBindVertexArray(VAO);
         std::vector<int> neighbour_indices(8 * vertices.size(), -1);
-        std::vector<float> neighbour_distances(8 * vertices.size(), 0.);
+        std::vector<float> neighbour_distances(8 * vertices.size(), 0);
         std::vector<std::set<int>> neighbour_indices_;
 
         neighbour_indices_.resize(vertices.size());
@@ -217,12 +216,10 @@ namespace mygl
 
         for (size_t i = 0; i < neighbour_indices_.size(); ++i)
         {
-            std::copy(neighbour_indices_[i].begin(),
-                      neighbour_indices_[i].end(),
-                      neighbour_indices.begin() + i * 8);
             size_t j = 0;
             for (const auto &idx : neighbour_indices_[i])
             {
+                neighbour_indices[i * 8 + j] = idx;
                 neighbour_distances[i * 8 + j++] =
                     glm::distance(vertices[i], vertices[idx]);
             }
@@ -258,6 +255,7 @@ namespace mygl
         glBufferData(GL_SHADER_STORAGE_BUFFER,
                      sizeof(float) * neighbour_distances.size(),
                      neighbour_distances.data(), GL_STATIC_DRAW);
+        std::cout << sizeof(float) * neighbour_distances.size() << '\n';
 
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         glBindVertexArray(0);
