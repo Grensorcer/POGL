@@ -237,20 +237,30 @@ namespace mygl
     }
 
     void Mesh::MeshEntry::init_compute(
-        const std::vector<std::set<int>> &neighbour_sets)
+        const std::vector<std::set<int>> &neighbour_sets,
+        const std::vector<glm::vec3> &vertices)
     {
         glBindVertexArray(VAO);
         glGenBuffers(1, &info_SSBO);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, info_SSBO);
 
         auto info = std::vector<Compute_Info>(neighbour_sets.size());
+        std::vector<int> v_pinned = {};
         for (size_t i = 0; i < neighbour_sets.size(); ++i)
         {
-            info[i].speed = glm::vec3(1.);
+            info[i].speed = glm::vec3(0.);
             info[i].pinned = false;
-            if (neighbour_sets[i].size() == 2)
-                info[i].pinned = true;
+            if (neighbour_sets[i].size() == 3)
+                v_pinned.push_back(i);
         }
+        std::cout << v_pinned.size() << std::endl;
+        std::sort(v_pinned.begin(), v_pinned.end(), [vertices](int a, int b) {
+            return vertices[a].y > vertices[b].y;
+            });
+        std::cout << v_pinned.size() << std::endl;
+        info[v_pinned[0]].pinned = true;
+        info[v_pinned[1]].pinned = true;
+
         glBufferData(GL_SHADER_STORAGE_BUFFER,
                      sizeof(Compute_Info) * info.size(), &(info.front()),
                      GL_DYNAMIC_DRAW);
@@ -421,7 +431,7 @@ namespace mygl
         mesh_entries_[idx].init(vertices, normals, tangents, uvs, indices);
         auto neighbour_sets =
             mesh_entries_[idx].init_neighbours(vertices, indices);
-        mesh_entries_[idx].init_compute(neighbour_sets);
+        mesh_entries_[idx].init_compute(neighbour_sets, vertices);
     }
 
 } // namespace mygl

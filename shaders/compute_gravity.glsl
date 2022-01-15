@@ -1,5 +1,5 @@
 #version 450
-#define MASS.0046
+#define MASS.02
 
 struct Vec3{
     float x,y,z;

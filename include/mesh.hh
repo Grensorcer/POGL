@@ -58,7 +58,8 @@ namespace mygl
             std::vector<std::set<int>>
             init_neighbours(const std::vector<glm::vec3> &vertices,
                             const std::vector<unsigned int> &indices);
-            void init_compute(const std::vector<std::set<int>> &vertices);
+            void init_compute(const std::vector<std::set<int>> &neighbour_sets,
+                              const std::vector<glm::vec3> &vertices);
 
             GLuint VAO;
             GLuint vertex_VBO;
