@@ -1,5 +1,5 @@
 #version 450
-#define MASS.01
+#define MASS.0046
 
 struct Vec3{
     float x,y,z;
@@ -83,10 +83,10 @@ vec3 spring_force(vec3 u,vec3 v,float L0)
 
 void main()
 {
-    float L0=.25;
-    float K=100;
+    float L0=.06;
+    float K=300;
     float mu=.2;
-    float h=.03;
+    float h=.001;
     
     vec3 my_neighbours[4];
     uint count_neighbours=0;
