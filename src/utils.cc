@@ -1,6 +1,5 @@
 #include "utils.hh"
 #include <fstream>
-#include <iostream>
 #include <exception>
 
 std::ostream &operator<<(std::ostream &out, const glm::vec3 &v)
