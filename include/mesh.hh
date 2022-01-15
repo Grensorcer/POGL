@@ -2,7 +2,7 @@
 #include <vector>
 #include <string>
 #include <memory>
-#include <set>
+#include <array>
 #include <GL/glew.h>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -55,10 +55,10 @@ namespace mygl
                       const std::vector<glm::vec2> &uvs,
                       const std::vector<unsigned int> &indices);
 
-            std::vector<std::set<int>>
+            std::vector<std::array<int, 8>>
             init_neighbours(const std::vector<glm::vec3> &vertices,
                             const std::vector<unsigned int> &indices);
-            void init_compute(const std::vector<std::set<int>> &neighbour_sets,
+            void init_compute(const std::vector<std::array<int, 8>> &neighbour_sets,
                               const std::vector<glm::vec3> &vertices);
 
             GLuint VAO;

@@ -176,19 +176,23 @@ namespace mygl
         glBindVertexArray(0);
     }
 
-    std::vector<std::set<int>>
+    std::vector<std::array<int, 8>>
     Mesh::MeshEntry::init_neighbours(const std::vector<glm::vec3> &vertices,
                                      const std::vector<unsigned int> &indices)
     {
         glBindVertexArray(VAO);
         std::vector<int> neighbour_indices(8 * vertices.size(), -1);
         std::vector<float> neighbour_distances(8 * vertices.size(), 0);
-        std::vector<std::set<int>> neighbour_indices_;
+        std::vector<std::array<int, 8>> neighbour_indices_;
 
         neighbour_indices_.resize(vertices.size());
+        for (size_t i = 0; i < vertices.size(); ++i)
+            for (short j = 0; j < 8; ++j)
+                neighbour_indices_[i][j] = -1;
+
         if (indices.back() == indices.size() - 1)
-            std::cout
-                << "WARNING: Seems like this quad mesh has no repeated index\n";
+            std::cout << "WARNING: Seems like this quad mesh has no "
+                         "repeated index\n";
         // std::cout << "TOTAL SIZE: " << indices.size() << '\n';
         for (size_t i = 0; i < indices.size(); i += 4)
         {
@@ -197,31 +201,32 @@ namespace mygl
             auto i2 = indices[i + 2];
             auto i3 = indices[i + 3];
 
-            neighbour_indices_[i0].emplace(i1);
-            neighbour_indices_[i0].emplace(i2);
-            neighbour_indices_[i0].emplace(i3);
+            neighbour_indices_[i0][3] = i1;
+            neighbour_indices_[i0][4] = i2;
+            neighbour_indices_[i0][5] = i3;
 
-            neighbour_indices_[i1].emplace(i2);
-            neighbour_indices_[i1].emplace(i3);
-            neighbour_indices_[i1].emplace(i0);
+            neighbour_indices_[i1][7] = i0;
+            neighbour_indices_[i1][5] = i2;
+            neighbour_indices_[i1][6] = i3;
 
-            neighbour_indices_[i2].emplace(i3);
-            neighbour_indices_[i2].emplace(i0);
-            neighbour_indices_[i2].emplace(i1);
+            neighbour_indices_[i2][0] = i0;
+            neighbour_indices_[i2][1] = i1;
+            neighbour_indices_[i2][7] = i3;
 
-            neighbour_indices_[i3].emplace(i0);
-            neighbour_indices_[i3].emplace(i1);
-            neighbour_indices_[i3].emplace(i2);
+            neighbour_indices_[i3][1] = i0;
+            neighbour_indices_[i3][2] = i1;
+            neighbour_indices_[i3][3] = i2;
         }
 
         for (size_t i = 0; i < neighbour_indices_.size(); ++i)
         {
-            size_t j = 0;
-            for (const auto &idx : neighbour_indices_[i])
+            for (short j = 0; j < 8; ++j)
             {
+                auto idx = neighbour_indices_[i][j];
                 neighbour_indices[i * 8 + j] = idx;
-                neighbour_distances[i * 8 + j++] =
-                    glm::distance(vertices[i], vertices[idx]);
+                if (idx != -1)
+                    neighbour_distances[i * 8 + j] =
+                        glm::distance(vertices[i], vertices[idx]);
             }
 
             std::cout << i << ":\n"
@@ -264,20 +269,22 @@ namespace mygl
     }
 
     void Mesh::MeshEntry::init_compute(
-        const std::vector<std::set<int>> &neighbour_sets,
+        const std::vector<std::array<int, 8>> &neighbour_indices,
         const std::vector<glm::vec3> &vertices)
     {
         glBindVertexArray(VAO);
         glGenBuffers(1, &info_SSBO);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, info_SSBO);
 
-        auto info = std::vector<Compute_Info>(neighbour_sets.size());
+        auto info = std::vector<Compute_Info>(neighbour_indices.size());
         std::vector<int> v_pinned = {};
-        for (size_t i = 0; i < neighbour_sets.size(); ++i)
+        for (size_t i = 0; i < neighbour_indices.size(); ++i)
         {
+            auto namount = std::count(neighbour_indices[i].begin(),
+                                      neighbour_indices[i].end(), -1);
             info[i].speed = glm::vec3(0.);
             info[i].pinned = false;
-            if (neighbour_sets[i].size() == 3)
+            if (8 - namount == 3)
                 v_pinned.push_back(i);
         }
         std::cout << v_pinned.size() << std::endl;
