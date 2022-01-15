@@ -63,7 +63,8 @@ namespace mygl
             GLuint VAO;
             GLuint vertex_VBO;
             GLuint normal_VBO;
-            GLuint SSBO;
+            GLuint neighbour_SSBO;
+            GLuint info_SSBO;
 
             unsigned int material_index;
             unsigned int num_indices;
