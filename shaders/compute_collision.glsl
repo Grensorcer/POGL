@@ -20,7 +20,10 @@ layout(std430,binding=6)buffer collision_buffer
     Vec3 collisions[];
 };
 
-// TODO: Use collision normals to make them "inside" their mesh
+layout(std430,binding=7)buffer normal_buffer
+{
+    Vec3 normals[];
+};
 
 layout(local_size_x=1024)in;
 
@@ -43,12 +46,9 @@ vec3 V2v(Vec3 v)
     return vec3(v.x,v.y,v.z);
 }
 
-vec3 collide(in vec3 cloth_particle,in vec3 sphere)
+vec3 collide(in vec3 cloth_particle,in vec3 sphere,in vec3 sphere_normal)
 {
-    float alpha=.9f;
-    float beta=.1f;
-    
-    vec3 diff=cloth_particle-sphere;
+    vec3 diff=cloth_particle-(sphere-sphere_normal*R/2);
     float collision=length(diff);
     
     vec3 res=vec3(0);
@@ -78,7 +78,8 @@ void main()
         for(uint i=0;i<collisions.length();++i)
         {
             vec3 collision=V2v(collisions[i]);
-            vec3 res=collide(w_vertex,(collision_world*vec4(collision,1.)).xyz);
+            vec3 normal=V2v(normals[i]);
+            vec3 res=collide(w_vertex,(collision_world*vec4(collision,1.)).xyz,(collision_world*vec4(normal,1.)).xyz);
             if(res!=vec3(0))
             {
                 collision_count+=1;

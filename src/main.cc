@@ -82,6 +82,8 @@ void compute_frame()
                                                    entry.num_vertices);
                         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6,
                                          entry.vertex_VBO);
+                        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7,
+                                         entry.normal_VBO);
                         mesh->compute(*collision_program, entry.num_vertices);
                         // utils::debug_buffer<glm::vec3>(entry.vertex_VBO,
                         //                               entry.num_vertices);
