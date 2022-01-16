@@ -16,7 +16,8 @@ namespace mygl
         return shader_;
     }
 
-    void Mesh::compute(const program &compute_program)
+    void Mesh::compute(const program &compute_program,
+                       std::optional<size_t> dispatch_size)
     {
         if (!compute_)
             return;
@@ -34,7 +35,12 @@ namespace mygl
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4,
                              mesh_entry.neighbour_distance_SSBO);
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, mesh_entry.info_SSBO);
-            glDispatchCompute(mesh_entry.num_vertices / 1024 + 1, 1, 1);
+            size_t dispatch = mesh_entry.num_vertices;
+            if (dispatch_size.has_value())
+                dispatch = dispatch_size.value() > dispatch
+                    ? dispatch_size.value()
+                    : dispatch;
+            glDispatchCompute(dispatch / 1024 + 1, 1, 1);
             glMemoryBarrier(GL_ALL_BARRIER_BITS);
         }
 
@@ -53,6 +59,16 @@ namespace mygl
     glm::mat4 &Mesh::get_world()
     {
         return world_;
+    }
+
+    bool Mesh::is_compute()
+    {
+        return compute_;
+    }
+
+    const std::vector<Mesh::MeshEntry> &Mesh::get_entries()
+    {
+        return mesh_entries_;
     }
 
     void Mesh::set_world(glm::mat4 world)
@@ -258,26 +274,6 @@ namespace mygl
                     neighbour_distances[i * 8 + j] =
                         glm::distance(vertices[i], vertices[idx]);
             }
-
-            /*
-            std::cout << i << ":\n"
-                      << '\t' << neighbour_indices[i * 8] << ' '
-                      << neighbour_distances[i * 8] << '\n'
-                      << neighbour_indices[i * 8 + 1] << ' '
-                      << neighbour_distances[i * 8 + 1] << '\n'
-                      << '\t' << neighbour_indices[i * 8 + 2] << ' '
-                      << neighbour_distances[i * 8 + 2] << '\n'
-                      << '\t' << neighbour_indices[i * 8 + 3] << ' '
-                      << neighbour_distances[i * 8 + 3] << '\n'
-                      << '\t' << neighbour_indices[i * 8 + 4] << ' '
-                      << neighbour_distances[i * 8 + 4] << '\n'
-                      << '\t' << neighbour_indices[i * 8 + 5] << ' '
-                      << neighbour_distances[i * 8 + 5] << '\n'
-                      << '\t' << neighbour_indices[i * 8 + 6] << ' '
-                      << neighbour_distances[i * 8 + 6] << '\n'
-                      << '\t' << neighbour_indices[i * 8 + 7] << ' '
-                      << neighbour_distances[i * 8 + 7] << '\n';
-            */
         }
 
         glGenBuffers(1, &neighbour_SSBO);

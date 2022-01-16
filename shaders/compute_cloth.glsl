@@ -75,7 +75,7 @@ vec3 spring_force(vec3 u,vec3 v,float L0)
 void main()
 {
     float K=500;
-    float mu=10;
+    float mu=5;
     float h=.004;
     
     int m_nidx[8];
@@ -103,11 +103,11 @@ void main()
     memoryBarrier();
     barrier();
     
-    if((idx<nb_vertices)&&(info.pinned==0))
+    if((idx<vertices.length())&&(info.pinned==0))
     {
         vec3 vertex=V2v(Vertex);
-        vec3 force=vec3(0);
         
+        vec3 force=vec3(0);
         for(uint i=0;i<count_neighbours;++i)
         {
             force+=spring_force(vertex,m_nvec[i],m_ndist[i]);

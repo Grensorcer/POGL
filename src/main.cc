@@ -27,7 +27,7 @@ DirectionalShadowMap shadow_map;
 
 int camsize_x = 1920, camsize_y = 1080;
 
-Camera camera{ camsize_x, camsize_y, glm::vec3(3, 4, 8), glm::vec3(0, 0, -1),
+Camera camera{ camsize_x, camsize_y, glm::vec3(3, 1, 8), glm::vec3(0, 0, -1),
                glm::vec3(0, 1, 0) };
 
 void mouse_function(int x, int y)
@@ -62,9 +62,38 @@ void set_uniforms(std::shared_ptr<program> &program,
 
 void compute_frame()
 {
-    auto &program = programs["compute"];
+    auto &collision_program = programs["compute_collision"];
+    collision_program->use();
     for (auto &mesh : scene)
-        mesh->compute(*program);
+    {
+        if (mesh->is_compute())
+        {
+            collision_program->set_mat4("world", mesh->get_world());
+            for (auto &other : scene)
+            {
+                if (other != mesh)
+                {
+                    collision_program->set_mat4("collision_world",
+                                                other->get_world());
+                    for (const auto &entry : other->get_entries())
+                    {
+                        glBindVertexArray(entry.VAO);
+                        collision_program->set_int("nb_collisions",
+                                                   entry.num_vertices);
+                        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6,
+                                         entry.vertex_VBO);
+                        mesh->compute(*collision_program, entry.num_vertices);
+                        // utils::debug_buffer<glm::vec3>(entry.vertex_VBO,
+                        //                               entry.num_vertices);
+                    }
+                }
+            }
+        }
+    }
+    glBindVertexArray(0);
+    auto &cloth_program = programs["compute_cloth"];
+    for (auto &mesh : scene)
+        mesh->compute(*cloth_program);
 }
 
 void directional_shadow_frame(DirectionalShadowMap &shadow_map,
@@ -224,14 +253,12 @@ bool setup_scene()
     scene.emplace_back(new QuadMesh("../data/model/cloth_more.obj"));
     scene[0]->set_shader(programs["render_quads"]);
     scene[0]->set_world(
-        glm::translate(scene[0]->get_world(), glm::vec3(0, 2, 2)));
+        glm::translate(scene[0]->get_world(), glm::vec3(0, 1, 0)));
 
-    /*
-    scene.emplace_back(new TriangleMesh("../data/model/elephant_plane.obj"));
+    scene.emplace_back(new TriangleMesh("../data/model/sphere.obj"));
     scene[1]->set_shader(programs["render"]);
     scene[1]->set_world(
         glm::translate(scene[1]->get_world(), glm::vec3(0, 0, 0)));
-    */
 
     for (auto &mesh : scene)
     {
@@ -255,8 +282,10 @@ bool setup_shaders()
     auto sgsrc = utils::read_file_content("../shaders/cubeShadowMap.gs");
     auto sfsrc = utils::read_file_content("../shaders/cubeShadowMap.fs");
 
-    auto compute_src =
-        utils::read_file_content("../shaders/compute_gravity.glsl");
+    auto compute_cloth_src =
+        utils::read_file_content("../shaders/compute_cloth.glsl");
+    auto compute_collision_src =
+        utils::read_file_content("../shaders/compute_collision.glsl");
 
     std::map<GLuint, std::string> shader_map{
         { GL_VERTEX_SHADER, render_vs_src },
@@ -278,8 +307,11 @@ bool setup_shaders()
     auto cube_shadow = program::make_program(shader_map);
     programs["cube_shadow"] = cube_shadow;
 
-    auto compute = program::make_compute(compute_src);
-    programs["compute"] = compute;
+    auto compute_cloth = program::make_compute(compute_cloth_src);
+    programs["compute_cloth"] = compute_cloth;
+
+    auto compute_collision = program::make_compute(compute_collision_src);
+    programs["compute_collision"] = compute_collision;
 
     if (!render->is_ready())
     {
@@ -296,7 +328,12 @@ bool setup_shaders()
         std::cerr << cube_shadow->get_log();
         return false;
     }
-    if (!compute->is_ready())
+    if (!compute_cloth->is_ready())
+    {
+        std::cerr << cube_shadow->get_log();
+        return false;
+    }
+    if (!compute_collision->is_ready())
     {
         std::cerr << cube_shadow->get_log();
         return false;
