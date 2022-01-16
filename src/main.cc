@@ -253,9 +253,9 @@ bool setup_scene()
     scene.emplace_back(new QuadMesh("../data/model/cloth_more.obj"));
     scene[0]->set_shader(programs["render_quads"]);
     scene[0]->set_world(
-        glm::translate(scene[0]->get_world(), glm::vec3(0, 1, 0)));
+        glm::translate(scene[0]->get_world(), glm::vec3(0, 4, 4)));
 
-    scene.emplace_back(new TriangleMesh("../data/model/sphere.obj"));
+    scene.emplace_back(new TriangleMesh("../data/model/elephant_plane.obj"));
     scene[1]->set_shader(programs["render"]);
     scene[1]->set_world(
         glm::translate(scene[1]->get_world(), glm::vec3(0, 0, 0)));

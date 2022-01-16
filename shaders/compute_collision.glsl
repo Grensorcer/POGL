@@ -67,13 +67,6 @@ void main()
     uint idx=gl_GlobalInvocationID.x;
     
     Vec3 Vertex=vertices[idx];
-    Vec3 Collision;
-    
-    if(idx<collisions.length())
-    {
-        Collision=collisions[idx];
-        collisions[idx]=v2V((collision_world*vec4(V2v(Collision),1.)).xyz);
-    }
     
     if(idx<vertices.length())
     {
@@ -85,7 +78,7 @@ void main()
         for(uint i=0;i<collisions.length();++i)
         {
             vec3 collision=V2v(collisions[i]);
-            vec3 res=collide(w_vertex,collision);
+            vec3 res=collide(w_vertex,(collision_world*vec4(collision,1.)).xyz);
             if(res!=vec3(0))
             {
                 collision_count+=1;
@@ -96,13 +89,5 @@ void main()
         approximation=(collision_count==0)?approximation:approximation/collision_count;
         
         vertices[idx]=v2V(vertex+approximation);
-    }
-    
-    memoryBarrier();
-    barrier();
-    
-    if(idx<collisions.length())
-    {
-        collisions[idx]=Collision;
     }
 }

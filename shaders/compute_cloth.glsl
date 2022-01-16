@@ -75,7 +75,7 @@ vec3 spring_force(vec3 u,vec3 v,float L0)
 void main()
 {
     float K=500;
-    float mu=5;
+    float mu=7;
     float h=.004;
     
     int m_nidx[8];
