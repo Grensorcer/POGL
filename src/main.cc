@@ -186,12 +186,14 @@ void complete_frame(const glm::vec3 &light_position)
 void display()
 {
     static float rotation = 0.f;
-    static float delta = 0.001f;
+    static float delta = 0.01f;
     rotation += delta;
     if (rotation >= 1)
         rotation = 0;
 
     glm::vec3 light_position{ 15, 15, 15 };
+    scene[1]->set_world(
+        glm::translate(scene[1]->get_world(), glm::vec3(0, 0, delta)));
 
     camera.on_render();
     compute_frame();
