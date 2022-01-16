@@ -313,7 +313,7 @@ namespace mygl
         {
             auto namount = std::count(neighbour_indices[i].begin(),
                                       neighbour_indices[i].end(), -1);
-            info[i].speed = glm::vec3(0.);
+            info[i].position = vertices[i];
             info[i].pinned = false;
             if (8 - namount == 3)
                 v_pinned.push_back(i);
@@ -327,7 +327,6 @@ namespace mygl
         glBufferData(GL_SHADER_STORAGE_BUFFER,
                      sizeof(Compute_Info) * info.size(), &(info.front()),
                      GL_DYNAMIC_DRAW);
-        // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, SSBO);
 
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         glBindVertexArray(0);

@@ -161,14 +161,6 @@ void display()
         rotation = 0;
 
     glm::vec3 light_position{ 15, 15, 15 };
-    // for (auto &mesh : scene)
-    // {}
-    // set_uniforms(programs["render"], light_position);
-    // set_uniforms(programs["render_quads"], light_position);
-
-    // world =
-    //     glm::rotate(world, glm::radians(rotation * 360), glm::vec3(0, 1, 0));
-    //  world = glm::translate(world, glm::vec3(rotation, 0, 0));
 
     camera.on_render();
     compute_frame();
@@ -232,12 +224,14 @@ bool setup_scene()
     scene.emplace_back(new QuadMesh("../data/model/cloth_more.obj"));
     scene[0]->set_shader(programs["render_quads"]);
     scene[0]->set_world(
-        glm::translate(scene[0]->get_world(), glm::vec3(4, 4, 4)));
+        glm::translate(scene[0]->get_world(), glm::vec3(0, 2, 2)));
 
+    /*
     scene.emplace_back(new TriangleMesh("../data/model/elephant_plane.obj"));
     scene[1]->set_shader(programs["render"]);
     scene[1]->set_world(
         glm::translate(scene[1]->get_world(), glm::vec3(0, 0, 0)));
+    */
 
     for (auto &mesh : scene)
     {

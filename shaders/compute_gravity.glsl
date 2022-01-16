@@ -6,7 +6,7 @@ struct Vec3{
 };
 
 struct ComputeInfo{
-    vec3 speed;
+    vec3 position;
     float pinned;
 };
 
@@ -74,9 +74,9 @@ vec3 spring_force(vec3 u,vec3 v,float L0)
 
 void main()
 {
-    float K=200;
-    float mu=.2;
-    float h=.003;
+    float K=500;
+    float mu=10;
+    float h=.004;
     
     int m_nidx[8];
     vec3 m_nvec[8];
@@ -88,6 +88,7 @@ void main()
     
     Vec3 Vertex=vertices[idx];
     ComputeInfo info=infos[idx];
+    
     for(uint i=0;i<8;++i)
     {
         uint j=count_neighbours;
@@ -105,22 +106,20 @@ void main()
     if((idx<nb_vertices)&&(info.pinned==0))
     {
         vec3 vertex=V2v(Vertex);
-        
         vec3 force=vec3(0);
+        
         for(uint i=0;i<count_neighbours;++i)
         {
             force+=spring_force(vertex,m_nvec[i],m_ndist[i]);
         }
         force*=K;
         force+=MASS*vec3(0,-9.81,0);
-        force-=mu*info.speed;
         
-        infos[idx].speed+=h*force/MASS;
-        vertex+=h*infos[idx].speed;
-        //vertex+=h*force;
-        vertices[idx]=v2V(vertex);
-        // vertices[idx]=v2V(vertex+SCALE*vec3(0,10,0)/count_neighbours);
-        // vertices[idx]=v2V((my_neighbours[0]+my_neighbours[1]+my_neighbours[2]+my_neighbours[3])/count_neighbours);
+        vec3 speed=vertex-info.position;
+        force-=mu*speed;
+        
+        vertices[idx]=v2V((h*h*force/MASS)+vertex+speed);
+        infos[idx].position=vertex;
     }
     
     memoryBarrier();

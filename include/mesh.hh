@@ -41,7 +41,7 @@ namespace mygl
         {
             struct Compute_Info
             {
-                glm::vec3 speed = glm::vec3(0.);
+                glm::vec3 position = glm::vec3(0.);
                 float pinned = false;
             };
 
