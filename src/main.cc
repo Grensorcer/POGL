@@ -25,7 +25,7 @@ std::map<std::string, std::shared_ptr<program>> programs;
 
 DirectionalShadowMap shadow_map;
 
-int camsize_x = 1820, camsize_y = 980;
+int camsize_x = 1920, camsize_y = 1080;
 
 Camera camera{ camsize_x, camsize_y, glm::vec3(3, 4, 8), glm::vec3(0, 0, -1),
                glm::vec3(0, 1, 0) };
@@ -39,15 +39,25 @@ void camera_keypress_function(int key, int, int)
     camera.on_keypress(key);
 }
 
-void set_uniforms(program &program, const glm::vec3 &light_position)
+void setup_samplers(program &p)
 {
-    program.use();
-    glm::vec3 light_color{ 1, 1, 1 };
-    static float ambient_light = 1.0f;
+    p.use();
+    p.set_int("texture_sampler", 0);
+    p.set_int("normal_sampler", 1);
+    p.set_int("height_sampler", 2);
+    p.set_int("shadowmap_sampler", 3);
+}
 
-    program.set_vec3("light_position", light_position);
-    program.set_vec3("light_color", light_color);
-    program.set_float("ambient_light", ambient_light);
+void set_uniforms(std::shared_ptr<program> &program,
+                  const glm::vec3 &light_position)
+{
+    program->use();
+    glm::vec3 light_color{ 1, 1, 1 };
+    static float ambient_light = 0.2f;
+
+    program->set_vec3("light_position", light_position);
+    program->set_vec3("light_color", light_color);
+    program->set_float("ambient_light", ambient_light);
 }
 
 void compute_frame()
@@ -58,30 +68,30 @@ void compute_frame()
 }
 
 void directional_shadow_frame(DirectionalShadowMap &shadow_map,
-                              const glm::mat4 &world,
                               const glm::vec3 &view_position)
 {
-    auto &program = programs["render_quads"];
-    program->use();
-
     glViewport(0, 0, 1024, 1024);
     shadow_map.write();
     glClear(GL_DEPTH_BUFFER_BIT);
 
-    // glm::mat4 projection = glm::ortho(-10.f, 10.f, -10.f, 10.f, 0.1f,
-    // 1000.f);
-
     shadow_map.set_view(view_position);
-    const auto wvp =
-        shadow_map.get_projection() * shadow_map.get_view() * world;
-
-    program->set_mat4("world", world);
-    program->set_mat4("wvp", wvp);
-    program->set_mat4("light_wvp", wvp);
-    program->set_vec3("view_position", view_position);
 
     for (auto &mesh : scene)
-        mesh->render(*program);
+    {
+        setup_samplers(*mesh->get_shader());
+        set_uniforms(mesh->get_shader(), view_position);
+
+        const auto &world = mesh->get_world();
+        const auto wvp =
+            shadow_map.get_projection() * shadow_map.get_view() * world;
+        auto &shader = mesh->get_shader();
+        shader->set_mat4("world", world);
+        shader->set_mat4("wvp", wvp);
+        shader->set_mat4("light_wvp", wvp);
+        shader->set_vec3("view_position", view_position);
+
+        mesh->render();
+    }
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 }
@@ -95,9 +105,6 @@ void cube_shadow_frame(CubeShadowMap &shadow_map,
     shadow_map.write();
     glClear(GL_DEPTH_BUFFER_BIT);
 
-    // glm::mat4 projection = glm::ortho(-10.f, 10.f, -10.f, 10.f, 0.1f,
-    // 1000.f);
-
     shadow_map.set_view(view_position);
     program->set_float("far_plane", 25.f);
     program->set_vec3("view_position", view_position);
@@ -109,15 +116,13 @@ void cube_shadow_frame(CubeShadowMap &shadow_map,
     }
 
     for (auto &mesh : scene)
-        mesh->render(*program);
+        mesh->render(program);
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 }
 
-void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
+void complete_frame(const glm::vec3 &light_position)
 {
-    auto &program = programs["render_quads"];
-    program->use();
     glViewport(0, 0, camsize_x, camsize_y);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shadow_map.read(GL_TEXTURE3);
@@ -127,18 +132,24 @@ void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
 
     glm::mat4 view = glm::lookAt(
         camera.position(), camera.position() + camera.target(), camera.up());
-    glm::mat4 light_view =
-        glm::lookAt(light_position, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-    const auto wvp = projection * view * world;
-    const auto lwvp = projection * light_view * world;
+    glm::mat4 light_view = shadow_map.get_view();
 
-    program->set_mat4("world", world);
-    program->set_mat4("wvp", wvp);
-    program->set_mat4("light_wvp", lwvp);
-    program->set_vec3("view_position", camera.position());
-
+    const auto vp = projection * view;
+    const auto lvp = projection * light_view;
     for (auto &mesh : scene)
-        mesh->render(*program);
+    {
+        setup_samplers(*mesh->get_shader());
+        set_uniforms(mesh->get_shader(), light_position);
+
+        const auto &world = mesh->get_world();
+        auto &shader = mesh->get_shader();
+        shader->set_mat4("world", world);
+        shader->set_mat4("wvp", vp * world);
+        shader->set_mat4("light_wvp", lvp * world);
+        shader->set_vec3("view_position", camera.position());
+
+        mesh->render();
+    }
 }
 
 void display()
@@ -150,18 +161,19 @@ void display()
         rotation = 0;
 
     glm::vec3 light_position{ 15, 15, 15 };
-    set_uniforms(*programs["render"], light_position);
-    set_uniforms(*programs["render_quads"], light_position);
+    // for (auto &mesh : scene)
+    // {}
+    // set_uniforms(programs["render"], light_position);
+    // set_uniforms(programs["render_quads"], light_position);
 
-    glm::mat4 world = glm::mat4(1.0f);
-    world =
-        glm::rotate(world, glm::radians(rotation * 360), glm::vec3(0, 1, 0));
-    // world = glm::translate(world, glm::vec3(rotation, 0, 0));
+    // world =
+    //     glm::rotate(world, glm::radians(rotation * 360), glm::vec3(0, 1, 0));
+    //  world = glm::translate(world, glm::vec3(rotation, 0, 0));
 
     camera.on_render();
     compute_frame();
-    directional_shadow_frame(shadow_map, world, light_position);
-    complete_frame(world, light_position);
+    directional_shadow_frame(shadow_map, light_position);
+    complete_frame(light_position);
     // glutPostRedisplay();
     glutSwapBuffers();
 }
@@ -212,36 +224,20 @@ bool initGl()
     return true;
 }
 
-void setup_uniforms(program &p)
-{
-    /*
-    gProjectionMatrixLocation = glGetUniformLocation(program_id, "wvp");
-    gLightProjectionMatrixLocation =
-        glGetUniformLocation(program_id, "light_wvp");
-    gWorldMatrixLocation = glGetUniformLocation(program_id, "world");
-    gViewPositionLocation = glGetUniformLocation(program_id, "view_position");
-    gLightPositionLocation = glGetUniformLocation(program_id, "light_position");
-    gLightColorLocation = glGetUniformLocation(program_id, "light_color");
-    gFarPlaneLocation = glGetUniformLocation(program_id, "far_plane");
-    gAmbientLight = glGetUniformLocation(program_id, "ambient_light");
-    gTextureLocation = glGetUniformLocation(program_id, "texture_sampler");
-    gNormalsLocation = glGetUniformLocation(program_id, "normal_sampler");
-    gHeightLocation = glGetUniformLocation(program_id, "height_sampler");
-    gShadowMapLocation = glGetUniformLocation(program_id, "shadowmap_sampler");
-    */
-
-    p.set_int("texture_sampler", 0);
-    p.set_int("normal_sampler", 1);
-    p.set_int("height_sampler", 2);
-    p.set_int("shadowmap_sampler", 3);
-}
-
 bool setup_scene()
 {
     if (!shadow_map.init(1024, 1024))
         return false;
 
     scene.emplace_back(new QuadMesh("../data/model/cloth_more.obj"));
+    scene[0]->set_shader(programs["render_quads"]);
+    scene[0]->set_world(
+        glm::translate(scene[0]->get_world(), glm::vec3(4, 4, 4)));
+
+    scene.emplace_back(new TriangleMesh("../data/model/elephant_plane.obj"));
+    scene[1]->set_shader(programs["render"]);
+    scene[1]->set_world(
+        glm::translate(scene[1]->get_world(), glm::vec3(0, 0, 0)));
 
     for (auto &mesh : scene)
     {
@@ -313,37 +309,31 @@ bool setup_shaders()
     }
 
     render_quads->use();
-    setup_uniforms(*render_quads);
+    setup_samplers(*render_quads);
     cube_shadow->use();
-    setup_uniforms(*cube_shadow);
+    setup_samplers(*cube_shadow);
     render->use();
-    setup_uniforms(*render);
+    setup_samplers(*render);
 
     return true;
 }
 
 int main(int argc, char **argv)
 {
-    std::cout << 1 << std::endl;
     initGlut(&argc, argv);
-    std::cout << 2 << std::endl;
     if (!initGlew())
         return 1;
     initGl();
-    std::cout << 3 << std::endl;
 
     if (!setup_shaders())
         return 1;
-    std::cout << 4 << std::endl;
 
     if (!setup_scene())
     {
         std::cerr << "VAO setup failed\n";
         return 1;
     }
-    std::cout << 5 << std::endl;
 
     glutMainLoop();
-    std::cout << 6 << std::endl;
     return 0;
 }

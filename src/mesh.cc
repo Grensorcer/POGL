@@ -6,8 +6,20 @@
 
 namespace mygl
 {
-    void Mesh::compute(const mygl::program &compute_program)
+    void Mesh::set_shader(const std::shared_ptr<program> &program)
     {
+        shader_ = program;
+    }
+
+    std::shared_ptr<program> &Mesh::get_shader()
+    {
+        return shader_;
+    }
+
+    void Mesh::compute(const program &compute_program)
+    {
+        if (!compute_)
+            return;
         compute_program.use();
         for (const auto &mesh_entry : mesh_entries_)
         {
@@ -28,6 +40,24 @@ namespace mygl
 
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         glBindVertexArray(0);
+    }
+
+    void Mesh::render(const std::shared_ptr<program> &program)
+    {
+        auto tmp = this->shader_;
+        this->set_shader(program);
+        this->render();
+        this->set_shader(tmp);
+    }
+
+    glm::mat4 &Mesh::get_world()
+    {
+        return world_;
+    }
+
+    void Mesh::set_world(glm::mat4 world)
+    {
+        world_ = world;
     }
 
     bool Mesh::scene_init(const aiScene *scene)
@@ -229,6 +259,7 @@ namespace mygl
                         glm::distance(vertices[i], vertices[idx]);
             }
 
+            /*
             std::cout << i << ":\n"
                       << '\t' << neighbour_indices[i * 8] << ' '
                       << neighbour_distances[i * 8] << '\n'
@@ -246,6 +277,7 @@ namespace mygl
                       << neighbour_distances[i * 8 + 6] << '\n'
                       << '\t' << neighbour_indices[i * 8 + 7] << ' '
                       << neighbour_distances[i * 8 + 7] << '\n';
+            */
         }
 
         glGenBuffers(1, &neighbour_SSBO);
@@ -260,7 +292,6 @@ namespace mygl
         glBufferData(GL_SHADER_STORAGE_BUFFER,
                      sizeof(float) * neighbour_distances.size(),
                      neighbour_distances.data(), GL_STATIC_DRAW);
-        std::cout << sizeof(float) * neighbour_distances.size() << '\n';
 
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         glBindVertexArray(0);
@@ -287,11 +318,9 @@ namespace mygl
             if (8 - namount == 3)
                 v_pinned.push_back(i);
         }
-        std::cout << v_pinned.size() << std::endl;
         std::sort(v_pinned.begin(), v_pinned.end(), [vertices](int a, int b) {
             return vertices[a].y > vertices[b].y;
         });
-        std::cout << v_pinned.size() << std::endl;
         info[v_pinned[0]].pinned = true;
         info[v_pinned[1]].pinned = true;
 
@@ -322,9 +351,9 @@ namespace mygl
         return res;
     }
 
-    void TriangleMesh::render(const mygl::program &program)
+    void TriangleMesh::render()
     {
-        program.use();
+        shader_->use();
         for (const auto &mesh_entry : mesh_entries_)
         {
             glBindVertexArray(mesh_entry.VAO);
@@ -383,6 +412,8 @@ namespace mygl
 
     bool QuadMesh::load()
     {
+        compute_ = true;
+
         bool res = false;
         auto importer = Assimp::Importer();
         const auto scene = importer.ReadFile(
@@ -398,9 +429,9 @@ namespace mygl
         return res;
     }
 
-    void QuadMesh::render(const mygl::program &program)
+    void QuadMesh::render()
     {
-        program.use();
+        shader_->use();
         for (const auto &mesh_entry : mesh_entries_)
         {
             glBindVertexArray(mesh_entry.VAO);

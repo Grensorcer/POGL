@@ -20,8 +20,13 @@ namespace mygl
         {}
         ~Mesh() = default;
         virtual bool load() = 0;
-        virtual void render(const mygl::program &program) = 0;
-        void compute(const mygl::program &compute_program);
+        virtual void render() = 0;
+        void render(const std::shared_ptr<program> &program);
+        void set_shader(const std::shared_ptr<program> &program);
+        std::shared_ptr<program> &get_shader();
+        void compute(const program &compute_program);
+        glm::mat4 &get_world();
+        void set_world(glm::mat4 world);
 
     protected:
         virtual void mesh_init(unsigned int idx, const aiMesh *mesh) = 0;
@@ -58,8 +63,9 @@ namespace mygl
             std::vector<std::array<int, 8>>
             init_neighbours(const std::vector<glm::vec3> &vertices,
                             const std::vector<unsigned int> &indices);
-            void init_compute(const std::vector<std::array<int, 8>> &neighbour_sets,
-                              const std::vector<glm::vec3> &vertices);
+            void
+            init_compute(const std::vector<std::array<int, 8>> &neighbour_sets,
+                         const std::vector<glm::vec3> &vertices);
 
             GLuint VAO;
             GLuint vertex_VBO;
@@ -76,6 +82,10 @@ namespace mygl
         std::string name_;
         std::vector<std::unique_ptr<Texture>> texture_entries_;
         std::vector<MeshEntry> mesh_entries_;
+        std::shared_ptr<program> shader_;
+        glm::mat4 world_ = glm::mat4(1.0f);
+
+        bool compute_ = false;
     };
 
     class TriangleMesh : public Mesh
@@ -83,6 +93,7 @@ namespace mygl
     public:
         using Mesh::Mesh;
         bool load();
+        void render();
         void render(const mygl::program &program);
 
     protected:
@@ -94,6 +105,7 @@ namespace mygl
     public:
         using Mesh::Mesh;
         bool load();
+        void render();
         void render(const mygl::program &program);
 
     protected:
