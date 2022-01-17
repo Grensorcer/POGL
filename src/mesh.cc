@@ -314,21 +314,15 @@ namespace mygl
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, info_SSBO);
 
         auto info = std::vector<Compute_Info>(neighbour_indices.size());
-        std::vector<int> v_pinned = {};
         for (size_t i = 0; i < neighbour_indices.size(); ++i)
         {
-            auto namount = std::count(neighbour_indices[i].begin(),
-                                      neighbour_indices[i].end(), -1);
             info[i].position = vertices[i];
             info[i].pinned = false;
-            if (8 - namount == 3)
-                v_pinned.push_back(i);
+            float pin_limit = 4.7;
+            if (vertices[i].z < -pin_limit &&
+                (vertices[i].x > pin_limit || vertices[i].x < -pin_limit))
+                info[i].pinned = true;
         }
-        std::sort(v_pinned.begin(), v_pinned.end(), [vertices](int a, int b) {
-            return vertices[a].y > vertices[b].y;
-        });
-        info[v_pinned[0]].pinned = true;
-        info[v_pinned[1]].pinned = true;
 
         glBufferData(GL_SHADER_STORAGE_BUFFER,
                      sizeof(Compute_Info) * info.size(), &(info.front()),
