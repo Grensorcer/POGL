@@ -15,12 +15,12 @@ layout(std430,binding=1)buffer vertex_buffer
     Vec3 vertices[];
 };
 
-layout(std430,binding=6)buffer collision_buffer
+layout(std430,binding=7)buffer collision_buffer
 {
     Vec3 collisions[];
 };
 
-layout(std430,binding=7)buffer normal_buffer
+layout(std430,binding=8)buffer normal_buffer
 {
     Vec3 normals[];
 };
@@ -56,7 +56,7 @@ vec3 collide(in vec3 cloth_particle,in vec3 sphere,in vec3 sphere_normal)
     {
         vec3 dir=normalize(diff);
         float d=2*R-collision;
-        res+=d*dir;
+        res+=(d/2)*dir;
     }
     
     return res;

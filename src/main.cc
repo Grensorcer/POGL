@@ -63,6 +63,10 @@ void set_uniforms(std::shared_ptr<program> &program,
 
 void compute_frame()
 {
+    auto &neighbour_program = programs["compute_neighbour"];
+    for (auto &mesh : scene)
+        mesh->compute(*neighbour_program);
+
     auto &collision_program = programs["compute_collision"];
     collision_program->use();
     for (auto &mesh : scene)
@@ -81,9 +85,9 @@ void compute_frame()
                         glBindVertexArray(entry.VAO);
                         collision_program->set_int("nb_collisions",
                                                    entry.num_vertices);
-                        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6,
-                                         entry.vertex_VBO);
                         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7,
+                                         entry.vertex_VBO);
+                        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8,
                                          entry.normal_VBO);
                         mesh->compute(*collision_program, entry.num_vertices);
                         // utils::debug_buffer<glm::vec3>(entry.vertex_VBO,
@@ -94,6 +98,7 @@ void compute_frame()
         }
     }
     glBindVertexArray(0);
+
     auto &cloth_program = programs["compute_cloth"];
     for (auto &mesh : scene)
         mesh->compute(*cloth_program);
@@ -264,9 +269,9 @@ bool setup_scene()
     scene.emplace_back(new QuadMesh("../data/model/cloth_more.obj"));
     scene[0]->set_shader(programs["render_quads"]);
     scene[0]->set_world(
-        glm::translate(scene[0]->get_world(), glm::vec3(0, 6, 0)));
+        glm::translate(scene[0]->get_world(), glm::vec3(0, 1, 0)));
 
-    scene.emplace_back(new TriangleMesh("../data/model/big_skull.obj"));
+    scene.emplace_back(new TriangleMesh("../data/model/sphere.obj"));
     scene[1]->set_shader(programs["render"]);
     scene[1]->set_world(
         glm::translate(scene[1]->get_world(), glm::vec3(0, 0, 0)));
@@ -297,6 +302,8 @@ bool setup_shaders()
 
     auto compute_cloth_src =
         utils::read_file_content("../shaders/compute_cloth.glsl");
+    auto compute_neighbour_src =
+        utils::read_file_content("../shaders/compute_neighbour.glsl");
     auto compute_collision_src =
         utils::read_file_content("../shaders/compute_collision.glsl");
     auto compute_normal_src =
@@ -325,6 +332,9 @@ bool setup_shaders()
     auto compute_cloth = program::make_compute(compute_cloth_src);
     programs["compute_cloth"] = compute_cloth;
 
+    auto compute_neighbour = program::make_compute(compute_neighbour_src);
+    programs["compute_neighbour"] = compute_neighbour;
+
     auto compute_normal = program::make_compute(compute_normal_src);
     programs["compute_normal"] = compute_normal;
 
@@ -335,7 +345,7 @@ bool setup_shaders()
     {
         if (!program.second->is_ready())
         {
-            std::cerr << program.second->get_log();
+            std::cerr << program.first << ": " << program.second->get_log();
             return false;
         }
     }

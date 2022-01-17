@@ -33,8 +33,10 @@ namespace mygl
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3,
                              mesh_entry.neighbour_SSBO);
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4,
+                             mesh_entry.neighbour_vertex_SSBO);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5,
                              mesh_entry.neighbour_distance_SSBO);
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, mesh_entry.info_SSBO);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, mesh_entry.info_SSBO);
             size_t dispatch = mesh_entry.num_vertices;
             if (dispatch_size.has_value())
                 dispatch = dispatch_size.value() > dispatch
@@ -282,6 +284,14 @@ namespace mygl
                      sizeof(int) * neighbour_indices.size(),
                      neighbour_indices.data(), GL_STATIC_DRAW);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+        glGenBuffers(1, &neighbour_vertex_SSBO);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, neighbour_vertex_SSBO);
+        std::vector<glm::vec3> dummy{ neighbour_distances.size(),
+                                      glm::vec3(0) };
+        glBufferData(GL_SHADER_STORAGE_BUFFER,
+                     sizeof(glm::vec3) * neighbour_distances.size(),
+                     dummy.data(), GL_DYNAMIC_DRAW);
 
         glGenBuffers(1, &neighbour_distance_SSBO);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, neighbour_distance_SSBO);

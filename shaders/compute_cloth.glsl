@@ -15,22 +15,22 @@ layout(std430,binding=1)buffer vertex_buffer
     Vec3 vertices[];
 };
 
-layout(std430,binding=2)buffer normal_buffer
-{
-    Vec3 normals[];
-};
-
 layout(std430,binding=3)readonly buffer neighbours_buffer
 {
     int neighbours[];
 };
 
-layout(std430,binding=4)readonly buffer distance_buffer
+layout(std430,binding=4)readonly buffer n_vertex_buffer
+{
+    Vec3 neighbour_vertices[];
+};
+
+layout(std430,binding=5)readonly buffer distance_buffer
 {
     float distances[];
 };
 
-layout(std430,binding=5)buffer info_buffer
+layout(std430,binding=6)buffer info_buffer
 {
     ComputeInfo infos[];
 };
@@ -86,39 +86,39 @@ void main()
     uint idx=gl_GlobalInvocationID.x;
     uint stride=idx*8;
     
-    Vec3 Vertex=vertices[idx];
-    ComputeInfo info=infos[idx];
-    
-    for(uint i=0;i<8;++i)
+    if(idx<nb_vertices)
     {
-        uint j=count_neighbours;
-        m_nidx[j]=get_neighbour(i,stride,count_neighbours);
-        m_ndist[j]=distances[stride+i];
-    }
-    for(uint i=0;i<count_neighbours;++i)
-    {
-        m_nvec[i]=V2v(vertices[m_nidx[i]]);
-    }
-    
-    memoryBarrier();
-    barrier();
-    
-    if((idx<vertices.length())&&(info.pinned==0))
-    {
-        vec3 vertex=V2v(Vertex);
+        Vec3 Vertex=vertices[idx];
+        ComputeInfo info=infos[idx];
         
-        vec3 force=vec3(0);
-        for(uint i=0;i<count_neighbours;++i)
+        for(uint i=0;i<8;++i)
         {
-            force+=spring_force(vertex,m_nvec[i],m_ndist[i]);
+            m_nidx[count_neighbours]=neighbours[stride+i];
+            if(m_nidx[count_neighbours]>=0)
+            {
+                m_nvec[count_neighbours]=V2v(neighbour_vertices[stride+i]);
+                m_ndist[count_neighbours]=distances[stride+i];
+                count_neighbours+=1;
+            }
         }
-        force*=K;
-        force+=MASS*vec3(0,-9.81,0);
         
-        vec3 speed=vertex-info.position;
-        force-=mu*speed;
-        
-        vertices[idx]=v2V((h*h*force/MASS)+vertex+speed);
-        infos[idx].position=vertex;
+        if(info.pinned==0)
+        {
+            vec3 vertex=V2v(Vertex);
+            
+            vec3 force=vec3(0);
+            for(uint i=0;i<count_neighbours;++i)
+            {
+                force+=spring_force(vertex,m_nvec[i],m_ndist[i]);
+            }
+            force*=K;
+            force+=MASS*vec3(0,-9.81,0);
+            
+            vec3 speed=vertex-info.position;
+            force-=mu*speed;
+            
+            vertices[idx]=v2V((h*h*force/MASS)+vertex+speed);
+            infos[idx].position=vertex;
+        }
     }
 }

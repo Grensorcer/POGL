@@ -25,7 +25,7 @@ layout(std430,binding=3)readonly buffer neighbours_buffer
     int neighbours[];
 };
 
-layout(std430,binding=5)buffer info_buffer
+layout(std430,binding=6)buffer info_buffer
 {
     ComputeInfo infos[];
 };
