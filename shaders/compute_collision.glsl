@@ -1,5 +1,6 @@
 #version 450
-#define R.03
+#define R_cloth.02
+#define R_static.05
 
 struct Vec3{
     float x,y,z;
@@ -48,14 +49,14 @@ vec3 V2v(Vec3 v)
 
 vec3 collide(in vec3 cloth_particle,in vec3 sphere,in vec3 sphere_normal)
 {
-    vec3 diff=cloth_particle-(sphere-sphere_normal*R/2);
+    vec3 diff=cloth_particle-(sphere-sphere_normal*R_static/2);
     float collision=length(diff);
     
     vec3 res=vec3(0);
-    if(collision<=2*R)
+    if(collision<=R_cloth+R_static)
     {
         vec3 dir=normalize(diff);
-        float d=2*R-collision;
+        float d=R_cloth+R_static-collision;
         res+=(d/2)*dir;
     }
     
