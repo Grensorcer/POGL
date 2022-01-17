@@ -121,26 +121,4 @@ void main()
         vertices[idx]=v2V((h*h*force/MASS)+vertex+speed);
         infos[idx].position=vertex;
     }
-    
-    memoryBarrier();
-    barrier();
-    
-    for(uint i=0;i<count_neighbours;++i)
-    {
-        m_nvec[i]=V2v(vertices[m_nidx[i]]);
-    }
-    
-    if((idx<nb_vertices)&&(info.pinned==0))
-    {
-        vec3 vertex=V2v(vertices[idx]);
-        vec3 normal=vec3(0);
-        for(uint i=0;i<count_neighbours;++i)
-        {
-            vec3 p1=V2v(vertices[m_nidx[i]]);
-            vec3 p2=V2v(vertices[m_nidx[(i+1)%count_neighbours]]);
-            normal+=normalize(cross(p1-vertex,p2-vertex));
-        }
-        normal/=count_neighbours;
-        normals[idx]=v2V(normal);
-    }
 }

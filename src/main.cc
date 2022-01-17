@@ -97,6 +97,10 @@ void compute_frame()
     auto &cloth_program = programs["compute_cloth"];
     for (auto &mesh : scene)
         mesh->compute(*cloth_program);
+
+    auto &normal_program = programs["compute_normal"];
+    for (auto &mesh : scene)
+        mesh->compute(*normal_program);
 }
 
 void directional_shadow_frame(DirectionalShadowMap &shadow_map,
@@ -121,6 +125,7 @@ void directional_shadow_frame(DirectionalShadowMap &shadow_map,
         shader->set_mat4("wvp", wvp);
         shader->set_mat4("light_wvp", wvp);
         shader->set_vec3("view_position", view_position);
+        shader->set_vec3("light_position", view_position);
 
         mesh->render();
     }
@@ -179,6 +184,7 @@ void complete_frame(const glm::vec3 &light_position)
         shader->set_mat4("wvp", vp * world);
         shader->set_mat4("light_wvp", lvp * world);
         shader->set_vec3("view_position", camera.position());
+        shader->set_vec3("light_position", light_position);
         shader->set_float("far_plane", 100.f);
 
         mesh->render();
@@ -194,8 +200,6 @@ void display()
         rotation = 0;
 
     glm::vec3 light_position{ 10, 10, 10 };
-    scene[1]->set_world(
-        glm::translate(scene[1]->get_world(), glm::vec3(0, 0, delta)));
 
     camera.on_render();
     compute_frame();
@@ -260,9 +264,9 @@ bool setup_scene()
     scene.emplace_back(new QuadMesh("../data/model/cloth_more.obj"));
     scene[0]->set_shader(programs["render_quads"]);
     scene[0]->set_world(
-        glm::translate(scene[0]->get_world(), glm::vec3(0, 4, 4)));
+        glm::translate(scene[0]->get_world(), glm::vec3(0, 6, 0)));
 
-    scene.emplace_back(new TriangleMesh("../data/model/elephant_plane.obj"));
+    scene.emplace_back(new TriangleMesh("../data/model/big_skull.obj"));
     scene[1]->set_shader(programs["render"]);
     scene[1]->set_world(
         glm::translate(scene[1]->get_world(), glm::vec3(0, 0, 0)));
@@ -278,14 +282,14 @@ bool setup_scene()
 bool setup_shaders()
 {
     auto render_vs_src =
-        utils::read_file_content("../shaders/normals_dirshadows.vs");
+        utils::read_file_content("../shaders/reliefMapping.vs");
     auto render_fs_src =
-        utils::read_file_content("../shaders/normals_dirshadows.fs");
+        utils::read_file_content("../shaders/reliefMapping.fs");
 
     auto renderq_tes_src =
-        utils::read_file_content("../shaders/do_nothing.glsl");
+        utils::read_file_content("../shaders/do_nothing_relief.glsl");
     auto renderq_fs_src =
-        utils::read_file_content("../shaders/normals_quads.fs");
+        utils::read_file_content("../shaders/reliefMapping_quads.fs");
 
     auto svsrc = utils::read_file_content("../shaders/cubeShadowMap.vs");
     auto sgsrc = utils::read_file_content("../shaders/cubeShadowMap.gs");
@@ -295,6 +299,8 @@ bool setup_shaders()
         utils::read_file_content("../shaders/compute_cloth.glsl");
     auto compute_collision_src =
         utils::read_file_content("../shaders/compute_collision.glsl");
+    auto compute_normal_src =
+        utils::read_file_content("../shaders/compute_normal.glsl");
 
     std::map<GLuint, std::string> shader_map{
         { GL_VERTEX_SHADER, render_vs_src },
@@ -319,33 +325,19 @@ bool setup_shaders()
     auto compute_cloth = program::make_compute(compute_cloth_src);
     programs["compute_cloth"] = compute_cloth;
 
+    auto compute_normal = program::make_compute(compute_normal_src);
+    programs["compute_normal"] = compute_normal;
+
     auto compute_collision = program::make_compute(compute_collision_src);
     programs["compute_collision"] = compute_collision;
 
-    if (!render->is_ready())
+    for (auto &program : programs)
     {
-        std::cerr << render->get_log();
-        return false;
-    }
-    if (!render_quads->is_ready())
-    {
-        std::cerr << cube_shadow->get_log();
-        return false;
-    }
-    if (!cube_shadow->is_ready())
-    {
-        std::cerr << cube_shadow->get_log();
-        return false;
-    }
-    if (!compute_cloth->is_ready())
-    {
-        std::cerr << cube_shadow->get_log();
-        return false;
-    }
-    if (!compute_collision->is_ready())
-    {
-        std::cerr << cube_shadow->get_log();
-        return false;
+        if (!program.second->is_ready())
+        {
+            std::cerr << program.second->get_log();
+            return false;
+        }
     }
 
     render_quads->use();
