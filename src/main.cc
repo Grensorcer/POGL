@@ -23,10 +23,12 @@ using namespace mygl;
 std::vector<std::unique_ptr<Mesh>> scene;
 std::map<std::string, std::shared_ptr<program>> programs;
 
-// DirectionalShadowMap shadow_map;
-CubeShadowMap shadow_map;
+DirectionalShadowMap shadow_map;
+// CubeShadowMap shadow_map;
 
-Camera camera{ 1920, 1080, glm::vec3(3, 4, 8), glm::vec3(0, 0, -1),
+int camsize_x = 1920, camsize_y = 1080;
+
+Camera camera{ camsize_x, camsize_y, glm::vec3(3, 1, 8), glm::vec3(0, 0, -1),
                glm::vec3(0, 1, 0) };
 
 void mouse_function(int x, int y)
@@ -38,49 +40,90 @@ void camera_keypress_function(int key, int, int)
     camera.on_keypress(key);
 }
 
-void set_uniforms(program &program, const glm::vec3 &light_position)
+void setup_samplers(program &p)
 {
-    program.use();
-    glm::vec3 light_color{ 1, 1, 1 };
-    static float ambient_light = 0.1f;
+    p.use();
+    p.set_int("texture_sampler", 0);
+    p.set_int("normal_sampler", 1);
+    p.set_int("height_sampler", 2);
+    p.set_int("shadowmap_sampler", 3);
+}
 
-    program.set_vec3("light_position", light_position);
-    program.set_vec3("light_color", light_color);
-    program.set_float("ambient_light", ambient_light);
+void set_uniforms(std::shared_ptr<program> &program,
+                  const glm::vec3 &light_position)
+{
+    program->use();
+    glm::vec3 light_color{ 1, 1, 1 };
+    static float ambient_light = 0.2f;
+
+    program->set_vec3("light_position", light_position);
+    program->set_vec3("light_color", light_color);
+    program->set_float("ambient_light", ambient_light);
 }
 
 void compute_frame()
 {
-    auto &program = programs["compute"];
+    auto &collision_program = programs["compute_collision"];
+    collision_program->use();
     for (auto &mesh : scene)
-        mesh->compute(*program);
+    {
+        if (mesh->is_compute())
+        {
+            collision_program->set_mat4("world", mesh->get_world());
+            for (auto &other : scene)
+            {
+                if (other != mesh)
+                {
+                    collision_program->set_mat4("collision_world",
+                                                other->get_world());
+                    for (const auto &entry : other->get_entries())
+                    {
+                        glBindVertexArray(entry.VAO);
+                        collision_program->set_int("nb_collisions",
+                                                   entry.num_vertices);
+                        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6,
+                                         entry.vertex_VBO);
+                        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7,
+                                         entry.normal_VBO);
+                        mesh->compute(*collision_program, entry.num_vertices);
+                        // utils::debug_buffer<glm::vec3>(entry.vertex_VBO,
+                        //                               entry.num_vertices);
+                    }
+                }
+            }
+        }
+    }
+    glBindVertexArray(0);
+    auto &cloth_program = programs["compute_cloth"];
+    for (auto &mesh : scene)
+        mesh->compute(*cloth_program);
 }
 
 void directional_shadow_frame(DirectionalShadowMap &shadow_map,
-                              const glm::mat4 &world,
                               const glm::vec3 &view_position)
 {
-    auto &program = programs["render"];
-    program->use();
-
     glViewport(0, 0, 1024, 1024);
     shadow_map.write();
     glClear(GL_DEPTH_BUFFER_BIT);
 
-    // glm::mat4 projection = glm::ortho(-10.f, 10.f, -10.f, 10.f, 0.1f,
-    // 1000.f);
-
     shadow_map.set_view(view_position);
-    const auto wvp =
-        shadow_map.get_projection() * shadow_map.get_view() * world;
-
-    program->set_mat4("world", world);
-    program->set_mat4("wvp", wvp);
-    program->set_mat4("light_wvp", wvp);
-    program->set_vec3("view_position", view_position);
 
     for (auto &mesh : scene)
-        mesh->render(*program);
+    {
+        setup_samplers(*mesh->get_shader());
+        set_uniforms(mesh->get_shader(), view_position);
+
+        const auto &world = mesh->get_world();
+        const auto wvp =
+            shadow_map.get_projection() * shadow_map.get_view() * world;
+        auto &shader = mesh->get_shader();
+        shader->set_mat4("world", world);
+        shader->set_mat4("wvp", wvp);
+        shader->set_mat4("light_wvp", wvp);
+        shader->set_vec3("view_position", view_position);
+
+        mesh->render();
+    }
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 }
@@ -90,12 +133,9 @@ void cube_shadow_frame(CubeShadowMap &shadow_map,
 {
     auto &program = programs["cube_shadow"];
     program->use();
-    glViewport(0, 0, 1920, 1080);
+    glViewport(0, 0, camsize_x, camsize_y);
     shadow_map.write();
     glClear(GL_DEPTH_BUFFER_BIT);
-
-    // glm::mat4 projection = glm::ortho(-10.f, 10.f, -10.f, 10.f, 0.1f,
-    // 1000.f);
 
     shadow_map.set_view(view_position);
     program->set_float("far_plane", 100.f);
@@ -108,61 +148,60 @@ void cube_shadow_frame(CubeShadowMap &shadow_map,
     }
 
     for (auto &mesh : scene)
-        mesh->render(*program);
+        mesh->render(program);
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 }
 
-void complete_frame(const glm::mat4 &world, const glm::vec3 &light_position)
+void complete_frame(const glm::vec3 &light_position)
 {
-    auto &program = programs["render"];
-    program->use();
-    glViewport(0, 0, 1920, 1080);
+    glViewport(0, 0, camsize_x, camsize_y);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shadow_map.read(GL_TEXTURE3);
 
-    glm::mat4 projection =
-        glm::perspective(glm::radians(45.f), 1920.f / 1080.f, 0.1f, 1000.f);
+    glm::mat4 projection = glm::perspective(
+        glm::radians(45.f), float(camsize_x) / float(camsize_y), 0.1f, 1000.f);
 
     glm::mat4 view = glm::lookAt(
         camera.position(), camera.position() + camera.target(), camera.up());
-    glm::mat4 light_view =
-        glm::lookAt(light_position, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-    const auto wvp = projection * view * world;
-    const auto lwvp = projection * light_view * world;
+    glm::mat4 light_view = shadow_map.get_view();
 
-    program->set_mat4("world", world);
-    program->set_mat4("wvp", wvp);
-    program->set_mat4("light_wvp", lwvp);
-    program->set_vec3("view_position", camera.position());
-    program->set_float("far_plane", 100.f);
-
+    const auto vp = projection * view;
+    const auto lvp = projection * light_view;
     for (auto &mesh : scene)
-        mesh->render(*program);
+    {
+        setup_samplers(*mesh->get_shader());
+        set_uniforms(mesh->get_shader(), light_position);
+
+        const auto &world = mesh->get_world();
+        auto &shader = mesh->get_shader();
+        shader->set_mat4("world", world);
+        shader->set_mat4("wvp", vp * world);
+        shader->set_mat4("light_wvp", lvp * world);
+        shader->set_vec3("view_position", camera.position());
+        shader->set_float("far_plane", 100.f);
+
+        mesh->render();
+    }
 }
 
 void display()
 {
     static float rotation = 0.f;
-    static float delta = 0.001f;
+    static float delta = 0.01f;
     rotation += delta;
     if (rotation >= 1)
         rotation = 0;
 
-    glm::vec3 light_position{ 0, 5, 2 };
-    set_uniforms(*programs["render"], light_position);
-    set_uniforms(*programs["render_quads"], light_position);
-
-    glm::mat4 world = glm::mat4(1.0f);
-    world =
-        glm::rotate(world, glm::radians(rotation * 360), glm::vec3(0, 1, 0));
-    // world = glm::translate(world, glm::vec3(rotation, 0, 0));
+    glm::vec3 light_position{ 10, 10, 10 };
+    scene[1]->set_world(
+        glm::translate(scene[1]->get_world(), glm::vec3(0, 0, delta)));
 
     camera.on_render();
-    // compute_frame();
-    // directional_shadow_frame(shadow_map, world, light_position);
-    cube_shadow_frame(shadow_map, light_position);
-    complete_frame(world, light_position);
+    compute_frame();
+    // cube_shadow_frame(shadow_map, light_position);
+    directional_shadow_frame(shadow_map, light_position);
+    complete_frame(light_position);
     // glutPostRedisplay();
     glutSwapBuffers();
 }
@@ -173,7 +212,7 @@ bool initGlut(int *argc, char **argv)
     glutInitContextVersion(4, 5);
     glutInitContextProfile(GLUT_CORE_PROFILE);
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
-    glutInitWindowSize(1920, 1080);
+    glutInitWindowSize(camsize_x, camsize_y);
     glutInitWindowPosition(10, 10);
     glutCreateWindow("My first render");
     glutDisplayFunc(display);
@@ -181,7 +220,7 @@ bool initGlut(int *argc, char **argv)
     glutPassiveMotionFunc(mouse_function);
     glutSpecialFunc(camera_keypress_function);
     glutWarpPointer(camera.mouse_x(), camera.mouse_y());
-    // glutGameModeString("1920x1080@32");
+    // glutGameModeString("camsize_xxcamsize_y@32");
     // glutEnterGameMode();
     return true;
 }
@@ -213,36 +252,20 @@ bool initGl()
     return true;
 }
 
-void setup_uniforms(program &p)
-{
-    /*
-    gProjectionMatrixLocation = glGetUniformLocation(program_id, "wvp");
-    gLightProjectionMatrixLocation =
-        glGetUniformLocation(program_id, "light_wvp");
-    gWorldMatrixLocation = glGetUniformLocation(program_id, "world");
-    gViewPositionLocation = glGetUniformLocation(program_id, "view_position");
-    gLightPositionLocation = glGetUniformLocation(program_id, "light_position");
-    gLightColorLocation = glGetUniformLocation(program_id, "light_color");
-    gFarPlaneLocation = glGetUniformLocation(program_id, "far_plane");
-    gAmbientLight = glGetUniformLocation(program_id, "ambient_light");
-    gTextureLocation = glGetUniformLocation(program_id, "texture_sampler");
-    gNormalsLocation = glGetUniformLocation(program_id, "normal_sampler");
-    gHeightLocation = glGetUniformLocation(program_id, "height_sampler");
-    gShadowMapLocation = glGetUniformLocation(program_id, "shadowmap_sampler");
-    */
-
-    p.set_int("texture_sampler", 0);
-    p.set_int("normal_sampler", 1);
-    p.set_int("height_sampler", 2);
-    p.set_int("shadowmap_sampler", 3);
-}
-
 bool setup_scene()
 {
     if (!shadow_map.init(1024, 1024))
         return false;
 
+    scene.emplace_back(new QuadMesh("../data/model/cloth_more.obj"));
+    scene[0]->set_shader(programs["render_quads"]);
+    scene[0]->set_world(
+        glm::translate(scene[0]->get_world(), glm::vec3(0, 4, 4)));
+
     scene.emplace_back(new TriangleMesh("../data/model/elephant_plane.obj"));
+    scene[1]->set_shader(programs["render"]);
+    scene[1]->set_world(
+        glm::translate(scene[1]->get_world(), glm::vec3(0, 0, 0)));
 
     for (auto &mesh : scene)
     {
@@ -255,9 +278,9 @@ bool setup_scene()
 bool setup_shaders()
 {
     auto render_vs_src =
-        utils::read_file_content("../shaders/normals_cubeshadows.vs");
+        utils::read_file_content("../shaders/normals_dirshadows.vs");
     auto render_fs_src =
-        utils::read_file_content("../shaders/normals_cubeshadows.fs");
+        utils::read_file_content("../shaders/normals_dirshadows.fs");
 
     auto renderq_tes_src =
         utils::read_file_content("../shaders/do_nothing.glsl");
@@ -268,8 +291,10 @@ bool setup_shaders()
     auto sgsrc = utils::read_file_content("../shaders/cubeShadowMap.gs");
     auto sfsrc = utils::read_file_content("../shaders/cubeShadowMap.fs");
 
-    auto compute_src =
-        utils::read_file_content("../shaders/compute_gravity.glsl");
+    auto compute_cloth_src =
+        utils::read_file_content("../shaders/compute_cloth.glsl");
+    auto compute_collision_src =
+        utils::read_file_content("../shaders/compute_collision.glsl");
 
     std::map<GLuint, std::string> shader_map{
         { GL_VERTEX_SHADER, render_vs_src },
@@ -291,36 +316,44 @@ bool setup_shaders()
     auto cube_shadow = program::make_program(shader_map);
     programs["cube_shadow"] = cube_shadow;
 
-    auto compute = program::make_compute(compute_src);
-    programs["compute"] = compute;
+    auto compute_cloth = program::make_compute(compute_cloth_src);
+    programs["compute_cloth"] = compute_cloth;
+
+    auto compute_collision = program::make_compute(compute_collision_src);
+    programs["compute_collision"] = compute_collision;
 
     if (!render->is_ready())
     {
         std::cerr << render->get_log();
         return false;
     }
-    // if (!render_quads->is_ready())
-    // {
-    //     std::cerr << cube_shadow->get_log();
-    //     return false;
-    // }
+    if (!render_quads->is_ready())
+    {
+        std::cerr << cube_shadow->get_log();
+        return false;
+    }
     if (!cube_shadow->is_ready())
     {
         std::cerr << cube_shadow->get_log();
         return false;
     }
-    if (!compute->is_ready())
+    if (!compute_cloth->is_ready())
+    {
+        std::cerr << cube_shadow->get_log();
+        return false;
+    }
+    if (!compute_collision->is_ready())
     {
         std::cerr << cube_shadow->get_log();
         return false;
     }
 
     render_quads->use();
-    setup_uniforms(*render_quads);
+    setup_samplers(*render_quads);
     cube_shadow->use();
-    setup_uniforms(*cube_shadow);
+    setup_samplers(*cube_shadow);
     render->use();
-    setup_uniforms(*render);
+    setup_samplers(*render);
 
     return true;
 }

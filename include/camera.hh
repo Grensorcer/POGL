@@ -36,27 +36,27 @@ namespace mygl
 
         void init();
 
-        const glm::vec3 &position()
+        const glm::vec3 &position() const
         {
             return position_;
         }
 
-        const glm::vec3 &target()
+        const glm::vec3 &target() const
         {
             return target_;
         }
 
-        const glm::vec3 &up()
+        const glm::vec3 &up() const
         {
             return up_;
         }
 
-        float mouse_x()
+        float mouse_x() const
         {
             return mouse_position_.x;
         }
 
-        float mouse_y()
+        float mouse_y() const
         {
             return mouse_position_.y;
         }

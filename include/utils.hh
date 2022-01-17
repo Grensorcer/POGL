@@ -1,8 +1,10 @@
 #pragma once
+#include <iostream>
 #include <string>
 #include <GL/glew.h>
 #include <glm/vec3.hpp>
 
+std::ostream &operator<<(std::ostream &out, const glm::vec3 &v);
 namespace utils
 {
     std::string read_file_content(const char *filename);
@@ -10,6 +12,16 @@ namespace utils
     void GLAPIENTRY messageCallback(GLenum, GLenum type, GLuint,
                                     GLenum severity, GLsizei,
                                     const GLchar *message, const void *);
+
+    template <typename T>
+    void debug_buffer(GLuint name, size_t size)
+    {
+        T data[size];
+        glGetNamedBufferSubData(name, 0, size * sizeof(T), data);
+        for (size_t i = 0; i < size; ++i)
+            std::cout << data[i] << '\n';
+    }
+
 } // namespace utils
 
 namespace gl_static

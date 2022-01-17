@@ -1,26 +1,79 @@
 #include "mesh.hh"
 #include <iostream>
-#include <set>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include "utils.hh"
 
 namespace mygl
 {
-    void Mesh::compute(const mygl::program &compute_program)
+    void Mesh::set_shader(const std::shared_ptr<program> &program)
     {
+        shader_ = program;
+    }
+
+    std::shared_ptr<program> &Mesh::get_shader()
+    {
+        return shader_;
+    }
+
+    void Mesh::compute(const program &compute_program,
+                       std::optional<size_t> dispatch_size)
+    {
+        if (!compute_)
+            return;
         compute_program.use();
         for (const auto &mesh_entry : mesh_entries_)
         {
             compute_program.set_uint("nb_vertices", mesh_entry.num_vertices);
             glBindVertexArray(mesh_entry.VAO);
-            glBindBuffer(GL_SHADER_STORAGE_BUFFER, mesh_entry.SSBO);
-            glDispatchCompute(65535, 1, 1);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1,
+                             mesh_entry.vertex_VBO);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2,
+                             mesh_entry.normal_VBO);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3,
+                             mesh_entry.neighbour_SSBO);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4,
+                             mesh_entry.neighbour_distance_SSBO);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, mesh_entry.info_SSBO);
+            size_t dispatch = mesh_entry.num_vertices;
+            if (dispatch_size.has_value())
+                dispatch = dispatch_size.value() > dispatch
+                    ? dispatch_size.value()
+                    : dispatch;
+            glDispatchCompute(dispatch / 1024 + 1, 1, 1);
             glMemoryBarrier(GL_ALL_BARRIER_BITS);
         }
 
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         glBindVertexArray(0);
+    }
+
+    void Mesh::render(const std::shared_ptr<program> &program)
+    {
+        auto tmp = this->shader_;
+        this->set_shader(program);
+        this->render();
+        this->set_shader(tmp);
+    }
+
+    glm::mat4 &Mesh::get_world()
+    {
+        return world_;
+    }
+
+    bool Mesh::is_compute()
+    {
+        return compute_;
+    }
+
+    const std::vector<Mesh::MeshEntry> &Mesh::get_entries()
+    {
+        return mesh_entries_;
+    }
+
+    void Mesh::set_world(glm::mat4 world)
+    {
+        world_ = world;
     }
 
     bool Mesh::scene_init(const aiScene *scene)
@@ -125,14 +178,14 @@ namespace mygl
         glGenBuffers(1, &vertex_VBO);
         glBindBuffer(GL_ARRAY_BUFFER, vertex_VBO);
         glBufferData(GL_ARRAY_BUFFER, s * vertices.size(), &(vertices.front()),
-                     GL_STATIC_DRAW);
+                     GL_DYNAMIC_DRAW);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
 
         glGenBuffers(1, &normal_VBO);
         glBindBuffer(GL_ARRAY_BUFFER, normal_VBO);
         glBufferData(GL_ARRAY_BUFFER, s * normals.size(), &(normals.front()),
-                     GL_STATIC_DRAW);
+                     GL_DYNAMIC_DRAW);
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
 
@@ -156,35 +209,37 @@ namespace mygl
                      sizeof(unsigned int) * indices.size(), &(indices.front()),
                      GL_STATIC_DRAW);
 
-        glGenBuffers(1, &SSBO);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
+        // glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
         // glBufferData(GL_SHADER_STORAGE_BUFFER, s * vertices.size(),
         //              &(vertices.front()), GL_STATIC_DRAW);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, vertex_VBO);
+        // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, vertex_VBO);
 
         // glBufferData(GL_SHADER_STORAGE_BUFFER, s * normals.size(),
         //              &(normals.front()), GL_STATIC_DRAW);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, normal_VBO);
+        // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, normal_VBO);
 
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         glBindVertexArray(0);
     }
 
-    void
+    std::vector<std::array<int, 8>>
     Mesh::MeshEntry::init_neighbours(const std::vector<glm::vec3> &vertices,
                                      const std::vector<unsigned int> &indices)
     {
         glBindVertexArray(VAO);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
-
-        std::vector<int> neighbour_indices(4 * vertices.size(), -1);
-        std::vector<std::set<int>> neighbour_indices_;
+        std::vector<int> neighbour_indices(8 * vertices.size(), -1);
+        std::vector<float> neighbour_distances(8 * vertices.size(), 0);
+        std::vector<std::array<int, 8>> neighbour_indices_;
 
         neighbour_indices_.resize(vertices.size());
+        for (size_t i = 0; i < vertices.size(); ++i)
+            for (short j = 0; j < 8; ++j)
+                neighbour_indices_[i][j] = -1;
+
         if (indices.back() == indices.size() - 1)
-            std::cout
-                << "WARNING: Seems like this quad mesh has no repeated index\n";
-        std::cout << "TOTAL SIZE: " << indices.size() << '\n';
+            std::cout << "WARNING: Seems like this quad mesh has no "
+                         "repeated index\n";
+        // std::cout << "TOTAL SIZE: " << indices.size() << '\n';
         for (size_t i = 0; i < indices.size(); i += 4)
         {
             auto i0 = indices[i];
@@ -192,34 +247,82 @@ namespace mygl
             auto i2 = indices[i + 2];
             auto i3 = indices[i + 3];
 
-            neighbour_indices_[i0].emplace(i1);
-            neighbour_indices_[i0].emplace(i3);
+            neighbour_indices_[i0][3] = i1;
+            neighbour_indices_[i0][4] = i2;
+            neighbour_indices_[i0][5] = i3;
 
-            neighbour_indices_[i1].emplace(i2);
-            neighbour_indices_[i1].emplace(i0);
+            neighbour_indices_[i1][7] = i0;
+            neighbour_indices_[i1][5] = i2;
+            neighbour_indices_[i1][6] = i3;
 
-            neighbour_indices_[i2].emplace(i3);
-            neighbour_indices_[i2].emplace(i1);
+            neighbour_indices_[i2][0] = i0;
+            neighbour_indices_[i2][1] = i1;
+            neighbour_indices_[i2][7] = i3;
 
-            neighbour_indices_[i3].emplace(i0);
-            neighbour_indices_[i3].emplace(i2);
+            neighbour_indices_[i3][1] = i0;
+            neighbour_indices_[i3][2] = i1;
+            neighbour_indices_[i3][3] = i2;
         }
 
         for (size_t i = 0; i < neighbour_indices_.size(); ++i)
         {
-            std::copy(neighbour_indices_[i].begin(),
-                      neighbour_indices_[i].end(),
-                      neighbour_indices.begin() + i * 4);
-            std::cout << i << ": " << neighbour_indices[i * 4] << ' '
-                      << neighbour_indices[i * 4 + 1] << ' '
-                      << neighbour_indices[i * 4 + 2] << ' '
-                      << neighbour_indices[i * 4 + 3] << '\n';
+            for (short j = 0; j < 8; ++j)
+            {
+                auto idx = neighbour_indices_[i][j];
+                neighbour_indices[i * 8 + j] = idx;
+                if (idx != -1)
+                    neighbour_distances[i * 8 + j] =
+                        glm::distance(vertices[i], vertices[idx]);
+            }
         }
 
+        glGenBuffers(1, &neighbour_SSBO);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, neighbour_SSBO);
         glBufferData(GL_SHADER_STORAGE_BUFFER,
-                     sizeof(unsigned int) * neighbour_indices.size(),
-                     &(neighbour_indices.front()), GL_STATIC_DRAW);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, SSBO);
+                     sizeof(int) * neighbour_indices.size(),
+                     neighbour_indices.data(), GL_STATIC_DRAW);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+        glGenBuffers(1, &neighbour_distance_SSBO);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, neighbour_distance_SSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER,
+                     sizeof(float) * neighbour_distances.size(),
+                     neighbour_distances.data(), GL_STATIC_DRAW);
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+        glBindVertexArray(0);
+
+        return neighbour_indices_;
+    }
+
+    void Mesh::MeshEntry::init_compute(
+        const std::vector<std::array<int, 8>> &neighbour_indices,
+        const std::vector<glm::vec3> &vertices)
+    {
+        glBindVertexArray(VAO);
+        glGenBuffers(1, &info_SSBO);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, info_SSBO);
+
+        auto info = std::vector<Compute_Info>(neighbour_indices.size());
+        std::vector<int> v_pinned = {};
+        for (size_t i = 0; i < neighbour_indices.size(); ++i)
+        {
+            auto namount = std::count(neighbour_indices[i].begin(),
+                                      neighbour_indices[i].end(), -1);
+            info[i].position = vertices[i];
+            info[i].pinned = false;
+            if (8 - namount == 3)
+                v_pinned.push_back(i);
+        }
+        std::sort(v_pinned.begin(), v_pinned.end(), [vertices](int a, int b) {
+            return vertices[a].y > vertices[b].y;
+        });
+        info[v_pinned[0]].pinned = true;
+        info[v_pinned[1]].pinned = true;
+
+        glBufferData(GL_SHADER_STORAGE_BUFFER,
+                     sizeof(Compute_Info) * info.size(), &(info.front()),
+                     GL_DYNAMIC_DRAW);
 
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         glBindVertexArray(0);
@@ -243,9 +346,9 @@ namespace mygl
         return res;
     }
 
-    void TriangleMesh::render(const mygl::program &program)
+    void TriangleMesh::render()
     {
-        program.use();
+        shader_->use();
         for (const auto &mesh_entry : mesh_entries_)
         {
             glBindVertexArray(mesh_entry.VAO);
@@ -304,6 +407,8 @@ namespace mygl
 
     bool QuadMesh::load()
     {
+        compute_ = true;
+
         bool res = false;
         auto importer = Assimp::Importer();
         const auto scene = importer.ReadFile(
@@ -319,9 +424,9 @@ namespace mygl
         return res;
     }
 
-    void QuadMesh::render(const mygl::program &program)
+    void QuadMesh::render()
     {
-        program.use();
+        shader_->use();
         for (const auto &mesh_entry : mesh_entries_)
         {
             glBindVertexArray(mesh_entry.VAO);
@@ -384,7 +489,9 @@ namespace mygl
 
         mesh_entries_[idx].material_index = mesh->mMaterialIndex;
         mesh_entries_[idx].init(vertices, normals, tangents, uvs, indices);
-        mesh_entries_[idx].init_neighbours(vertices, indices);
+        auto neighbour_sets =
+            mesh_entries_[idx].init_neighbours(vertices, indices);
+        mesh_entries_[idx].init_compute(neighbour_sets, vertices);
     }
 
 } // namespace mygl
