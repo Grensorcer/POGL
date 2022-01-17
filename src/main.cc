@@ -17,6 +17,7 @@
 #include "mesh.hh"
 #include "shadow_map.hh"
 #include "camera.hh"
+#include "wind.hh"
 
 using namespace mygl;
 
@@ -61,7 +62,7 @@ void set_uniforms(std::shared_ptr<program> &program,
     program->set_float("ambient_light", ambient_light);
 }
 
-void compute_frame()
+void compute_frame(const Wind &wind)
 {
     auto &neighbour_program = programs["compute_neighbour"];
     for (auto &mesh : scene)
@@ -100,6 +101,8 @@ void compute_frame()
     glBindVertexArray(0);
 
     auto &cloth_program = programs["compute_cloth"];
+    cloth_program->use();
+    cloth_program->set_vec3("wind", wind.Force());
     for (auto &mesh : scene)
         mesh->compute(*cloth_program);
 
@@ -198,16 +201,19 @@ void complete_frame(const glm::vec3 &light_position)
 
 void display()
 {
+    static auto wind = Wind(0.5, 10.);
     static float rotation = 0.f;
     static float delta = 0.01f;
+
     rotation += delta;
     if (rotation >= 1)
         rotation = 0;
+    wind.update();
 
     glm::vec3 light_position{ 10, 10, 10 };
 
     camera.on_render();
-    compute_frame();
+    compute_frame(wind);
     // cube_shadow_frame(shadow_map, light_position);
     directional_shadow_frame(shadow_map, light_position);
     complete_frame(light_position);
@@ -271,10 +277,12 @@ bool setup_scene()
     scene[0]->set_world(
         glm::translate(scene[0]->get_world(), glm::vec3(0, 1, 0)));
 
+    /*
     scene.emplace_back(new TriangleMesh("../data/model/sphere.obj"));
     scene[1]->set_shader(programs["render"]);
     scene[1]->set_world(
         glm::translate(scene[1]->get_world(), glm::vec3(0, 0, 0)));
+    */
 
     for (auto &mesh : scene)
     {

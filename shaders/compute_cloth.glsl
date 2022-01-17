@@ -38,6 +38,7 @@ layout(std430,binding=6)buffer info_buffer
 layout(local_size_x=1024)in;
 
 uniform uint nb_vertices;
+uniform vec3 wind;
 
 Vec3 v2V(vec3 v)
 {
@@ -112,7 +113,7 @@ void main()
                 force+=spring_force(vertex,m_nvec[i],m_ndist[i]);
             }
             force*=K;
-            force+=MASS*vec3(0,-9.81,0);
+            force+=MASS*(vec3(0,-9.81,0)+wind);
             
             vec3 speed=vertex-info.position;
             force-=mu*speed;
