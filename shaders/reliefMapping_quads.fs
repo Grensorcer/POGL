@@ -30,36 +30,37 @@ float GetDepthIntersection(vec2 TangentDir,vec2 TexCoord)
     const int lin_search_steps=10;
     const int bin_search_steps=16;
     float step_depth=1.f/lin_search_steps;
-    float step=step_depth;
+    float step_=step_depth;
     float depth=0;
     float best_depth=1;
     
     for(int i=0;i<lin_search_steps;++i)
     {
-        depth+=step;
+        depth+=step_;
         vec2 uv=TexCoord+depth*TangentDir;
         if(best_depth>=.996&&texture(height_sampler,uv).x<=depth)
         {
             best_depth=depth;
         }
     }
-    depth=best_depth-step;
+    depth=best_depth-step_;
     for(int i=0;i<bin_search_steps;++i)
     {
-        step*=.5;
+        step_*=.5;
         vec2 uv=TexCoord+depth*TangentDir;
         if(depth>=texture(height_sampler,uv).x)
         {
             best_depth=depth;
-            depth-=2*step;
+            depth-=2*step_;
         }
-        depth+=step;
+        depth+=step_;
     }
     return best_depth;
 }
 
 void main(){
     vec3 LightDir=normalize(LightPosTe-wvPosTe);
+    LightDir=vec3(LightDir.x,-LightDir.y,LightDir.z);
     vec3 ViewDir=normalize(ViewPosTe-wvPosTe);
     float magic_number=.05;
     vec2 TangentViewDir=ViewDir.xy*magic_number/ViewDir.z;
