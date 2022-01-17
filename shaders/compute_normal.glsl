@@ -48,18 +48,6 @@ vec3 V2v(Vec3 v)
     return vec3(v.x,v.y,v.z);
 }
 
-int get_neighbour(uint idx,uint stride,inout uint count_neighbours)
-{
-    int i=neighbours[stride+idx];
-    
-    if(i>=0)
-    {
-        count_neighbours+=1;
-    }
-    
-    return i;
-}
-
 void main()
 {
     uint count_neighbours=0;
@@ -73,8 +61,11 @@ void main()
         
         for(uint i=0;i<8;++i)
         {
-            uint j=count_neighbours;
-            m_nidx[j]=get_neighbour(i,stride,count_neighbours);
+            m_nidx[count_neighbours]=neighbours[stride+i];
+            if(m_nidx[count_neighbours]>=0)
+            {
+                count_neighbours+=1;
+            }
         }
         for(uint i=0;i<count_neighbours;++i)
         {
